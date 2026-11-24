@@ -1,0 +1,10 @@
+# macOS folder settings — not part of the app
+.DS_Store
+**/.DS_Store
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+*.log
+/*.png

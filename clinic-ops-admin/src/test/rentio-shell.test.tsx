@@ -51,14 +51,23 @@ afterEach(() => {
   delete (window as { matchMedia?: unknown }).matchMedia;
 });
 
-const userSelect = () => screen.getByRole('combobox', { name: 'User and role' }) as HTMLSelectElement;
-const userOptions = () => within(userSelect()).getAllByRole('option').filter((o) => (o as HTMLOptionElement).value) as HTMLOptionElement[];
+/** The login's custom user dropdown (no native <select>): a trigger button + a role-grouped listbox. */
+const userSelect = () => screen.getByRole('button', { name: /^User and role/ });
+const userList = () => {
+  if (userSelect().getAttribute('aria-expanded') !== 'true') fireEvent.click(userSelect());
+  return screen.getByRole('listbox', { name: 'User and role' });
+};
+const userOptions = () => within(userList()).getAllByRole('option');
 /** Login screen: pick the person in the dropdown and press Sign In. */
 const loginAs = (name: string) => {
   const opt = userOptions().find((o) => o.textContent!.startsWith(`${name} · `));
   if (!opt) throw new Error(`no demo user ${name}`);
-  fireEvent.change(userSelect(), { target: { value: opt.value } });
+  fireEvent.click(opt);
   fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+};
+const groupLabel = (opt: HTMLElement) => {
+  const group = opt.closest('[role="group"]')!;
+  return document.getElementById(group.getAttribute('aria-labelledby')!)!.textContent!;
 };
 
 describe('demo login screen', () => {
@@ -88,13 +97,16 @@ describe('demo login screen', () => {
     ]) {
       const opt = options.find((o) => o.textContent!.startsWith(`${name} · `));
       expect(opt, name).toBeDefined();
-      const group = opt!.parentElement as HTMLOptGroupElement;
-      expect(group.tagName, name).toBe('OPTGROUP');
-      expect(group.label.toLowerCase(), `${name} · ${role}`).toContain(role.toLowerCase().split(' ')[0]);
+      expect(opt!.closest('[role="group"]'), name).not.toBeNull();
+      expect(groupLabel(opt!).toLowerCase(), `${name} · ${role}`).toContain(role.toLowerCase().split(' ')[0]);
     }
     // grouped by role
-    const stage = [...userSelect().querySelectorAll('optgroup')].find((g) => /Stage owner/i.test(g.label))!;
-    expect(stage.querySelectorAll('option')).toHaveLength(4);
+    const stage = within(userList()).getByRole('group', { name: /Stage owner/i });
+    expect(within(stage).getAllByRole('option')).toHaveLength(4);
+    // no native <select> on the sign-in screen
+    expect(r.container.querySelector('select')).toBeNull();
+    fireEvent.keyDown(userList(), { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
     // Sign In waits for a choice
     expect(screen.getByRole('button', { name: 'Sign In' })).toBeDisabled();
     // no business figures on the sign-in screen

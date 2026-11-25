@@ -808,6 +808,7 @@
 }
 .rt-login-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
 }
 .rt-login-label {
@@ -818,40 +819,118 @@
   position: relative;
   display: flex;
   align-items: center;
+  min-width: 0;
 }
-.rt-login-field svg {
-  position: absolute;
+.rt-login-select svg {
+  flex: none;
   color: var(--login-muted);
   pointer-events: none;
 }
-.rt-login-field svg:first-child {
-  left: 14px;
-}
-.rt-login-field svg:last-child {
-  right: 14px;
-}
 .rt-login-select {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   width: 100%;
   min-width: 0;
   height: 52px;
-  padding: 0 40px 0 42px;
+  padding: 0 14px;
   border: 1px solid var(--login-line);
   border-radius: 12px;
   background: #fff;
   color: var(--login-ink);
   font: inherit;
   font-size: 15px;
-  appearance: none;
+  text-align: left;
   cursor: pointer;
   transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rt-login-select-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rt-login-select.is-placeholder .rt-login-select-value {
+  color: var(--login-muted);
+}
+.rt-login-select svg:last-child {
+  transition: transform 0.15s;
+}
+.rt-login-select.is-open svg:last-child {
+  transform: rotate(180deg);
 }
 .rt-login-select:hover {
   border-color: var(--login-brass);
 }
-.rt-login-select:focus-visible {
+.rt-login-select:focus-visible,
+.rt-login-select.is-open {
   outline: none;
   border-color: var(--login-maroon);
   box-shadow: 0 0 0 3px rgba(163, 22, 43, 0.18);
+}
+.rt-login-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: min(340px, 50vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--login-line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 40px -16px rgba(59, 31, 18, 0.35);
+  outline: none;
+}
+.rt-login-menu-group {
+  padding: 10px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--login-maroon);
+}
+.rt-login-menu-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rt-login-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.rt-login-option-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rt-login-option-name {
+  font-weight: 600;
+  color: var(--login-ink);
+}
+.rt-login-option-sub {
+  color: var(--login-muted);
+}
+.rt-login-option.is-active {
+  background: var(--login-paper);
+}
+.rt-login-option.is-selected {
+  background: rgba(163, 22, 43, 0.08);
+}
+.rt-login-option.is-selected svg {
+  flex: none;
+  color: var(--login-maroon);
 }
 .rt-login-submit {
   margin-top: 16px;
@@ -903,7 +982,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .rt-login-submit,
-  .rt-login-select {
+  .rt-login-select,
+  .rt-login-select svg:last-child {
     transition: none;
   }
   .rt-login-submit:hover:not(:disabled) {

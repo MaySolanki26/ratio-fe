@@ -1,0 +1,49 @@
+{
+ "at": "2026-11-25T05:10:26.914Z",
+ "viewport": "1440x900",
+ "out": [
+  {
+   "page": "masters/route",
+   "user": "u_fhead",
+   "height": 1001,
+   "screens": 1.2,
+   "horizontalScroll": false
+  },
+  {
+   "page": "procurement/intake",
+   "user": "u_kiran",
+   "height": 870,
+   "screens": 1,
+   "horizontalScroll": false
+  },
+  {
+   "page": "stock/godowns",
+   "user": "u_ravi",
+   "height": 820,
+   "screens": 1,
+   "horizontalScroll": false
+  },
+  {
+   "page": "stock/inventory",
+   "user": "u_ravi",
+   "height": 1324,
+   "screens": 1.6,
+   "horizontalScroll": false
+  },
+  {
+   "page": "stock/byproducts",
+   "user": "u_ravi",
+   "height": 820,
+   "screens": 1,
+   "horizontalScroll": false
+  },
+  {
+   "page": "stock/holds",
+   "user": "u_meera",
+   "height": 820,
+   "screens": 1,
+   "horizontalScroll": false
+  }
+ ],
+ "errors": []
+}

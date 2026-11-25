@@ -61,10 +61,12 @@ export default function Salesman() {
     <RPage
       title="Salesman app"
       description="Simulated phone app for mapped distributors and retailers, with offline capture and sync."
-      intro={
-        <>
-          Orders taken offline wait in the queue and are checked again on sync <Sim what="Phone app simulated" />
-        </>
+      actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">
+            Orders taken offline wait in the queue and are checked again on sync <Sim what="Phone app simulated" />
+          </p>
+        </div>
       }
     >
       <FocusMissing focus={focus} found={focusFound} />

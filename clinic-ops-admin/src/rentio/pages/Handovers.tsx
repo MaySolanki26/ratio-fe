@@ -50,7 +50,15 @@ export default function Handovers() {
   const partials = open.filter((h) => h.received > 0);
   const where = (loc: string) => s.locations[loc]?.label ?? loc;
   return (
-    <RPage title="Handovers" description="Material sent between stages: what was issued, what arrived, and what is still outstanding.">
+    <RPage
+      title="Handovers"
+      description="Material sent between stages: what was issued, what arrived, and what is still outstanding."
+      actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">Issued material sits between stages until the next stage receives it; a short receipt must be settled.</p>
+        </div>
+      }
+    >
       {focus && !focused && <InlineAlert tone="info">That handover is not in your area of work, or does not exist.</InlineAlert>}
       <KpiRow>
         <Kpi label="Open handovers" value={open.length} />

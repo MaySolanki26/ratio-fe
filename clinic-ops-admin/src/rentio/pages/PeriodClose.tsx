@@ -1,11 +1,11 @@
 /** Period close (no back-dated postings into a closed month) and scoped audit export. */
 import { useState } from 'react';
 import { Button } from '../../components/primitives/Button';
-import { InlineAlert } from '../../components/primitives/feedback';
 import { userName } from '../../domain/rentio/access';
 import { auditRows, lockPeriod, reopenPeriod, toCsv } from '../../domain/rentio/control';
 import { readScope } from '../../domain/rentio/scope';
 import { useAct, useR } from '../store';
+import { usePager } from './_uxA';
 import { Details, FormButton, ImplNote, Panel, RPage, Status, str, Table, useCan, fmtTime } from '../ui';
 
 const istMonth = (iso: string) => new Date(Date.parse(iso) + 330 * 60_000).toISOString().slice(0, 7);
@@ -32,6 +32,7 @@ export default function PeriodClose() {
     a.click();
     URL.revokeObjectURL(url);
   };
+  const pager = usePager(shown, 12);
   const lockReason = can('period.lock', 'close accounting periods');
   return (
     <RPage title="Period close & audit export" description="Close a past month so nothing can be posted back into it, and export the audit trail you are allowed to see.">
@@ -83,16 +84,15 @@ export default function PeriodClose() {
         meta={`${shown.length} entries · ${readScope(actor).all ? 'whole network' : 'your actions and your area'}`}
         actions={
           <>
-            <input className="input" type="search" aria-label="Search audit trail" placeholder="Search person, lot, reference…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 260 }} />
+            <input className="input" type="search" aria-label="Search audit trail" placeholder="Search person, lot, reference…" value={q} onChange={(e) => { setQ(e.target.value); pager.reset(); }} />
             <Button icon="download" onClick={download} disabledReason={shown.length ? undefined : 'Nothing to export'}>
               Export CSV
             </Button>
           </>
         }
       >
-        <InlineAlert tone="info">Kept in this browser for the demo — not tamper-evident. A production system keeps the audit trail on a server.</InlineAlert>
         <Table
-          rows={shown.slice(0, 60)}
+          rows={pager.rows}
           rowKey={(r) => r.id}
           cols={[
             { key: 'at', label: 'When (IST)', render: (r) => fmtTime(r.at) },
@@ -101,7 +101,8 @@ export default function PeriodClose() {
             { key: 'o', label: 'Outcome', render: (r) => (r.outcome.startsWith('blocked') ? <span className="tone-text-danger">{r.outcome}</span> : r.outcome) },
           ]}
         />
-        {shown.length > 60 && <p className="muted">Showing 60 of {shown.length}. The export contains all {shown.length}.</p>}
+        {pager.bar}
+        <p className="muted small">The export contains all {shown.length} entries matching the search. Kept in this browser for the demo — not tamper-evident; a production system keeps the audit trail on a server.</p>
       </Panel>
       <Details summary="What the export contains">
         <p className="muted">Postings (who, what, reference), blocked attempts with the reason, and every stock movement in your area with its basis. Spreadsheet formulas are neutralised. The file header carries the export time and units.</p>

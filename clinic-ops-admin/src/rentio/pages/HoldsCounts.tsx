@@ -7,6 +7,7 @@ import type { Hold } from '../../domain/rentio/types';
 import { fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
 import { HoldGraphics } from './_graphA';
+import { useShowMore } from './_uxA';
 import { Details, FormButton, ImplNote, Kpi, KpiRow, LotLink, Panel, Qty, RPage, Reason, Status, Table, Who, fmtTime, num, str, useCan, useFocusId } from '../ui';
 
 export default function HoldsCounts() {
@@ -38,61 +39,66 @@ export default function HoldsCounts() {
   const visibleHolds = s.holds.filter((h) => (h.scope === 'lot' ? canReadLot(s, actor, h.target) || affected(h).length > 0 : canReadLoc(s, actor, h.target, sc)));
   const active = visibleHolds.filter((h) => h.status === 'active');
   const counts = s.counts.filter((c) => canReadLoc(s, actor, c.location, sc));
+  // active holds first, then the most recent released ones
+  const holdList = [...visibleHolds].reverse().sort((a, b) => Number(b.status === 'active') - Number(a.status === 'active'));
+  const shown = useShowMore(holdList, 8, (h) => h.id === focus);
 
   return (
     <RPage
       title="Holds & counts"
       description="Quality and location holds, and physical counts that need an independent approval."
-      intro="A hold keeps the stock counted but stops it being used — for the lot and everything made from it."
       actions={
-        <>
-          <FormButton
-            label="Place quality hold"
-            variant="primary"
-            disabledReason={holdReason}
-            title="Quality hold on a lot (and its descendants)"
-            submitLabel="Place hold"
-            fields={[
-              { key: 'target', label: 'Lot', type: 'select', required: true, options: lotOpts },
-              { key: 'kind', label: 'Type', type: 'select', required: true, options: [{ value: 'quality', label: 'Quality' }, { value: 'recall', label: 'Recall / containment' }, { value: 'other', label: 'Other' }] },
-              { key: 'reason', label: 'Reason', type: 'textarea', required: true },
-            ]}
-            initial={{ kind: 'quality' }}
-            onSubmit={(v, key) => run('Place quality hold', (ctx) => placeHold(ctx, { scope: 'lot', target: str(v.target), kind: str(v.kind) as Hold['kind'], reason: str(v.reason) }), { key, success: (h) => `Hold ${h.id} placed — descendants and reservations affected` })}
-          />
-          <FormButton
-            label="Take retained sample"
-            disabledReason={holdReason}
-            title="Retained QC sample"
-            submitLabel="Move to sample store"
-            note="The sample leaves available stock and is kept, held, in the QC sample store. Testing or disposal later deducts it once."
-            fields={[
-              { key: 'pos', label: 'From lot @ location', type: 'select', required: true, options: countOpts },
-              { key: 'kg', label: 'Sample quantity', type: 'number', unit: 'kg', required: true },
-              { key: 'purpose', label: 'Purpose', type: 'text', required: true, placeholder: 'e.g. retained batch sample — 6 months' },
-            ]}
-            initial={{ kg: '2' }}
-            onSubmit={(v, key) => {
-              const [lotId, loc] = str(v.pos).split('@');
-              return run('Take retained sample', (ctx) => takeSample(ctx, { lotId, loc, kg: num(v.kg), purpose: str(v.purpose) }), { key, success: (r) => `Sample ${r.ref}: ${r.qty} moved to QC sample store` });
-            }}
-          />
-          <FormButton
-            label="Submit count"
-            disabledReason={countReason}
-            title="Physical count against snapshot"
-            submitLabel="Submit count"
-            note="Your count is compared with the system quantity now. A difference goes to another person for approval; nothing changes until then."
-            fields={[
-              { key: 'pos', label: 'Lot @ location', type: 'select', required: true, options: countOpts },
-              { key: 'counted', label: 'Counted quantity', type: 'number', unit: 'kg', required: true },
-            ]}
-            onSubmit={(v, key) => {
-              const [lotId, loc] = str(v.pos).split('@');
-              return run('Submit physical count', (ctx) => submitCount(ctx, { lotId, loc, countedKg: num(v.counted) }), { key, success: (c) => (c.difference ? `Count ${c.id}: difference ${fmtKg(c.difference)} sent for approval` : `Count ${c.id} matches the ledger`) });
-            }}
-          />
-        </>
+        <div className="rt-headrow">
+          <p className="rt-intro">A hold keeps the stock counted but stops it being used — for the lot and everything made from it.</p>
+          <div className="rt-row rt-headrow-actions">
+            <FormButton
+              label="Place quality hold"
+              variant="primary"
+              disabledReason={holdReason}
+              title="Quality hold on a lot (and its descendants)"
+              submitLabel="Place hold"
+              fields={[
+                { key: 'target', label: 'Lot', type: 'select', required: true, options: lotOpts },
+                { key: 'kind', label: 'Type', type: 'select', required: true, options: [{ value: 'quality', label: 'Quality' }, { value: 'recall', label: 'Recall / containment' }, { value: 'other', label: 'Other' }] },
+                { key: 'reason', label: 'Reason', type: 'textarea', required: true },
+              ]}
+              initial={{ kind: 'quality' }}
+              onSubmit={(v, key) => run('Place quality hold', (ctx) => placeHold(ctx, { scope: 'lot', target: str(v.target), kind: str(v.kind) as Hold['kind'], reason: str(v.reason) }), { key, success: (h) => `Hold ${h.id} placed — descendants and reservations affected` })}
+            />
+            <FormButton
+              label="Take retained sample"
+              disabledReason={holdReason}
+              title="Retained QC sample"
+              submitLabel="Move to sample store"
+              note="The sample leaves available stock and is kept, held, in the QC sample store. Testing or disposal later deducts it once."
+              fields={[
+                { key: 'pos', label: 'From lot @ location', type: 'select', required: true, options: countOpts },
+                { key: 'kg', label: 'Sample quantity', type: 'number', unit: 'kg', required: true },
+                { key: 'purpose', label: 'Purpose', type: 'text', required: true, placeholder: 'e.g. retained batch sample — 6 months' },
+              ]}
+              initial={{ kg: '2' }}
+              onSubmit={(v, key) => {
+                const [lotId, loc] = str(v.pos).split('@');
+                return run('Take retained sample', (ctx) => takeSample(ctx, { lotId, loc, kg: num(v.kg), purpose: str(v.purpose) }), { key, success: (r) => `Sample ${r.ref}: ${r.qty} moved to QC sample store` });
+              }}
+            />
+            <FormButton
+              label="Submit count"
+              disabledReason={countReason}
+              title="Physical count against snapshot"
+              submitLabel="Submit count"
+              note="Your count is compared with the system quantity now. A difference goes to another person for approval; nothing changes until then."
+              fields={[
+                { key: 'pos', label: 'Lot @ location', type: 'select', required: true, options: countOpts },
+                { key: 'counted', label: 'Counted quantity', type: 'number', unit: 'kg', required: true },
+              ]}
+              onSubmit={(v, key) => {
+                const [lotId, loc] = str(v.pos).split('@');
+                return run('Submit physical count', (ctx) => submitCount(ctx, { lotId, loc, countedKg: num(v.counted) }), { key, success: (c) => (c.difference ? `Count ${c.id}: difference ${fmtKg(c.difference)} sent for approval` : `Count ${c.id} matches the ledger`) });
+              }}
+            />
+          </div>
+        </div>
       }
     >
       <KpiRow>
@@ -105,7 +111,7 @@ export default function HoldsCounts() {
       <HoldGraphics holds={active} affected={affected} counts={counts} labelOf={(h) => (h.scope === 'lot' ? h.target : s.locations[h.target]?.label ?? h.target)} />
 
       {focus && !visibleHolds.some((h) => h.id === focus) && <InlineAlert tone="warning">That record is not in your area or no longer open.</InlineAlert>}
-      <Panel title="Holds" meta="Released by QC — never by the person who placed it">
+      <Panel title="Holds" meta={`${active.length} active · released by QC — never by the person who placed it`}>
         <Table
           cols={[
             { key: 't', label: 'On', render: (h) => (h.scope === 'lot' ? <LotLink id={h.target} /> : s.locations[h.target]?.label ?? h.target) },
@@ -163,12 +169,13 @@ export default function HoldsCounts() {
               },
             },
           ]}
-          rows={[...visibleHolds].reverse()}
+          rows={shown.visible}
           rowKey={(h) => h.id}
           rowClass={(h) => (h.status === 'released' ? 'is-muted' : undefined)}
           focus={focus}
           empty="No holds."
         />
+        {shown.toggle}
       </Panel>
 
       <Details summary={`Physical counts (${counts.length})`} open={counts.some((c) => c.status === 'pending_approval')}>

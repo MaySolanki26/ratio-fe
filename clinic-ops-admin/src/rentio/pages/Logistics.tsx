@@ -5,7 +5,7 @@ import { tripProgress } from '../../domain/rentio/delivery';
 import { scopedShipments } from '../../domain/rentio/scope';
 import { fmtINR, fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
-import { Details, FormButton, Grid, ImplNote, num, Panel, Qty, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime, Who } from '../ui';
+import { Details, FormButton,  ImplNote, num, Panel, Qty, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime, Who } from '../ui';
 import { FocusMissing } from './_distHelpers';
 import { MultiStopPanel } from './Delivery';
 import { LogisticsCharts } from './_graphB';
@@ -36,9 +36,9 @@ export default function Logistics() {
     <RPage
       title="Trips & freight"
       description="Trips, vehicle changes, transporter rate cards and freight bill reconciliation."
-      intro="Freight bills are checked against weight × the trip's rate card; a mismatch goes to Accounts for approval."
       actions={
-        <>
+        <div className="rt-headrow">
+          <p className="rt-intro">Freight bills are checked against weight × the trip's rate card; a mismatch goes to Accounts.</p>
           <FormButton
             label="Change vehicle"
             disabledReason={can('dispatch', 'change trip vehicles') && manage ? manage : tripOpts.length ? undefined : 'No trips'}
@@ -76,7 +76,7 @@ export default function Logistics() {
             ]}
             onSubmit={(v, key) => run('Revise rate card', (ctx) => C.reviseRateCard(ctx, { transporterId: str(v.transporterId), perKg: num(v.perKg) }), { key, success: (c) => `${c.id} active from now` })}
           />
-        </>
+        </div>
       }
     >
       <FocusMissing focus={focus} found={focusFound} />
@@ -118,7 +118,7 @@ export default function Logistics() {
         </Details>
       </Panel>
 
-      <Grid>
+      <div className="rt-split2">
         <Panel title="Transporter rate cards">
           <Table
             cols={[
@@ -151,7 +151,7 @@ export default function Logistics() {
             empty="No disputes."
           />
         </Panel>
-      </Grid>
+      </div>
       <ImplNote>
         Versioned rate cards — trips keep the card in force at dispatch (FR-068); trip ↔ truck/driver/lots with reasoned vehicle change (FR-069, EC-32); out-of-tolerance delivery variance held for supervisor resolution (FR-070); freight bill reconciliation before Accounts export, mismatch → approval (FR-071). Trips and shortfalls are limited to shipments in the actor's read scope.
       </ImplNote>

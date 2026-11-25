@@ -250,3 +250,35 @@ A module rendering does **not** mean its requirements are complete. Production r
 - **Event times.** Every posting's `at` is checked against the location timeline (`checkChronology`) and must not be in the future. Tests must use real or past times, never a fixed future "now". The scenario runner uses `fitAt` so it never back-dates after manual work.
 - **Demo clock.** RT-001 fixtures are dated 16–24 Nov 2026 IST, so the demo machine's clock must be on or after 24 Nov 2026, 17:00 IST.
 - **Alerts and status.** Alerts need `actionCap` (derived from the key prefix unless given). Use `ctaFor` for CTA labels and `orderStatus` / `OrderStatusChip` for any order status; never re-derive status in a page.
+
+## UX consistency and density round (2026-11-25)
+
+Goal: aligned, consistent components on every page, and far less scrolling.
+
+- **Shared patterns:** page intro and primary actions share one header row (`.rt-headrow`); panels and chart cards use the same header and title size; related panels sit side by side (`.rt-split2`); heavy pages use tabs kept in the URL (`?tab=`), and `?focus=` links open the tab holding that record; secondary material sits in collapsed Details; long lists show the top 8 with "Show all (n)"; at most one key-figure row, removed where a chart already shows the same numbers.
+- **Flow charts:** equal-width steps on one row at desktop (the 8-stage route included); 4 per row on narrower containers, 2 per row on phones; short one-line sub-labels with full detail on hover.
+- **Owner overview:** decisions next to top risks; stock and route flows; grade and delivery charts; run timeline, replenishment and delivery promises side by side; delivery promises list every problem order first (at risk, disputed, credit hold), then by date; the open-exceptions chart now lives only on Alerts; three secondary sections merged into one "More detail".
+- **Chart fix:** free capacity is drawn but no longer counted in a stack's total.
+- **Tab helpers:** `src/rentio/pages/_uxA.tsx`; page CSS in `src/styles/rentio-ux-a.css`, `rentio-ux-b.css`, `rentio-ux-c.css`.
+
+Page height at 1440×900, default view, in screens (measured by `docs/rentio/ux-round/scripts/measure.mjs`; data in `ux-round/heights-before.json` / `heights-after.json`):
+
+| Page | Before | After |
+|---|---|---|
+| Owner overview | 3.6 | 2.0 |
+| Presenter tools | 8.0 | 1.1 |
+| Yield, costing & trace | 5.8 | 1.7 |
+| Period close | 3.3 | 1.1 |
+| Orders & dispatch | 2.9 | 1.2 |
+| Stock by lot | 2.7 | 1.6 |
+| Purchases & intake | 2.5 | 1.0 |
+| Alerts | 2.5 | 1.5 |
+| Attendance | 2.4 | 1.3 |
+| Godowns & stacks | 2.3 | 1.0 |
+| Stage board | 2.2 | 1.2 |
+| Returns | 2.0 | 1.0 |
+| All 29 measured pages, total | 62.6 | 36.2 |
+
+No page is over 2.0 screens; no page scrolls horizontally; no console errors. Typecheck clean, 277/277 tests, build passes. One test step changed (BA-1: Ravi opens the Repack tab before "Record repack"); its assertions are unchanged. One graphics test no longer expects the open-exceptions chart on the overview, because the chart moved to Alerts.
+
+Not checked in this round: dark mode across all pages, phone width beyond the owner overview, and tablet width.

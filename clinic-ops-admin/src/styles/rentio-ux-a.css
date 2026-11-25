@@ -1,0 +1,97 @@
+/* UX consistency round — page tabs, show-more, pager and compact traces (fork A pages). Tokens only. */
+.rt-pagetabs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.rt-pagetabs > .tabs {
+  border-bottom: 1px solid var(--s-border);
+}
+.rt-tabpanel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.rt-showmore {
+  display: flex;
+  justify-content: center;
+  padding-top: 6px;
+}
+.rt-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 8px;
+}
+.rt-pager .muted {
+  margin-right: auto;
+}
+/* compact numbered list (walkthrough, scenario steps) */
+.rt-steps.is-compact {
+  gap: 4px;
+}
+.rt-steps.is-compact .rt-step {
+  padding: 6px 10px;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+}
+.rt-steps.is-compact .rt-step-detail {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* lot genealogy as one line per lot inside trace tabs (same data, half the height) */
+.rt-trace-compact .rt-tree li {
+  padding-top: 3px;
+}
+.rt-trace-compact .rt-tree ul > li::before {
+  top: 16px;
+}
+.rt-trace-compact .rt-tree-node {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, 1fr) 96px minmax(110px, auto);
+  align-items: center;
+  gap: 10px;
+  padding: 3px 10px;
+  min-width: min(100%, 560px);
+}
+.rt-trace-compact .rt-tree-bar,
+.rt-trace-compact .rt-tree-live {
+  grid-column: auto;
+}
+.rt-trace-compact .rt-tree-live {
+  text-align: right;
+  white-space: nowrap;
+}
+/* a key-figures panel next to a chart */
+.rt-figs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+/* long lot routes (10+ passes): two rows of seven instead of one row of squeezed boxes */
+@container (min-width: 861px) {
+  .rt-route-wrap .rt-fc.is-long {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+  .rt-route-wrap .rt-fc.is-long .rt-fc-node:nth-child(7n) .rt-fc-arrow {
+    display: none;
+  }
+}
+/* lot picker beside the page tabs */
+.rt-tabpick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rt-tabpick .input {
+  width: auto;
+  max-width: 340px;
+}
+.rt-tabpick .field-label {
+  white-space: nowrap;
+  margin: 0;
+}

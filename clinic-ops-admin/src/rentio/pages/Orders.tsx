@@ -1,8 +1,9 @@
 /** Factory → distributor orders: FEFO reservation, dispatch weighing and in-transit custody. */
+import '../../styles/rentio-ux-c.css';
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Button } from '../../components/primitives/Button';
-import { InlineAlert } from '../../components/primitives/feedback';
+import { InlineAlert, Tabs } from '../../components/primitives/feedback';
 import * as C from '../../domain/rentio/commerce';
 import { DEMO } from '../../domain/rentio/config';
 import { computePositions, stockRows } from '../../domain/rentio/engine';
@@ -10,7 +11,7 @@ import { readScope, scopedOrders, scopedShipments, scopedStockRows, visibleDistr
 import type { Order } from '../../domain/rentio/types';
 import { fmtINR, fmtKg, kg, sum } from '../../domain/rentio/units';
 import { newKey, useAct, useR } from '../store';
-import { Details, FormButton, Grid, ImplNote, Kpi, KpiRow, LotLink, num, OrderStatusChip, Panel, Qty, Reason, Ref, RPage, Sim, Status, str, Table, useCan, useFocusId, Who, fmtTime } from '../ui';
+import { Details, FormButton, ImplNote, Kpi, KpiRow, LotLink, num, OrderStatusChip, Panel, Qty, Reason, Ref, RPage, Sim, Status, str, Table, useCan, useFocusId, Who, fmtTime } from '../ui';
 import { FocusMissing, Preview } from './_distHelpers';
 import { OrderCharts } from './_graphB';
 import { wsBase } from '../../lib/routes';
@@ -23,6 +24,7 @@ export default function Orders() {
   const can = useCan();
   const focus = useFocusId();
   const [sel, setSel] = useState<string>('');
+  const [tabSel, setTab] = useState<'orders' | 'shipments' | 'stock' | ''>('');
   const sc = readScope(actor);
   const orders = scopedOrders(s, actor)
     .filter((o) => o.kind === 'factory')
@@ -44,13 +46,16 @@ export default function Orders() {
   // replenishment handoff: /distribution/orders?new=order&d=D04&grade=A1&kg=5700 opens the normal form prefilled
   const q = new URLSearchParams(useLocation().search);
   const handoff = q.get('new') === 'order' ? q : undefined;
+  // a focused shipment opens the shipments tab; everything else starts on the orders
+  const tab = tabSel || (focus && shipments.some((sh) => sh.id === focus) ? 'shipments' : 'orders');
 
   return (
     <RPage
       title="Orders & dispatch"
       description="Factory to distributor orders, stock reservation, dispatch weighing and stock in transit."
-      intro="Reserving keeps stock in the godown for an order; dispatch moves it into transit until the distributor receives it."
       actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">Reserving keeps stock in the godown; dispatch moves it into transit until the distributor receives it.</p>
         <FormButton
           label="New factory order"
           icon="plus"
@@ -72,6 +77,7 @@ export default function Orders() {
             run('Create factory order', (ctx) => C.createFactoryOrder(ctx, { distributorId: str(v.distributorId), lines: [{ grade: str(v.grade), kg: num(v.kg) }], promisedDate: str(v.promisedDate) || undefined, advance: !!v.advance }), { key, success: (o) => `Order ${o.id} ${o.status === 'credit_hold' ? 'is on credit hold — approval requested' : 'approved within credit'}` })
           }
         />
+        </div>
       }
     >
       <FocusMissing focus={focus} found={focusFound} />
@@ -82,23 +88,28 @@ export default function Orders() {
         <Kpi label="On hold" value={fmtKg(sum(finished.filter((r) => r.held).map((r) => r.qty)))} tone={finished.some((r) => r.held) ? 'warning' : undefined} />
         {sc.transit && <Kpi label="In transit" value={fmtKg(sum(rows.filter((r) => r.location?.kind === 'transit').map((r) => r.qty)))} />}
       </KpiRow>
+      <Tabs
+        label="Orders sections"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: 'orders', label: 'Orders', count: orders.length },
+          { id: 'shipments', label: 'Fulfilment & shipments', count: shipments.length },
+          { id: 'stock', label: 'Stock & reservations', count: activeRes.length },
+        ]}
+      />
 
-      <OrderCharts s={s} orders={orders} order={order} base={wsBase(db.session.workspaceId)} focus={focus && orderIds.has(focus) ? focus : undefined} rows={rows} shipments={shipments} />
-
-      <Panel title="Factory orders" meta="ordered = reserved + dispatched + open (+ cancelled)">
+      {tab === 'orders' && (
+        <>
+      <div className="rt-split2 rt-wide-left">
+      <Panel title="Factory orders" meta="pick an order to act on it">
         <Table
           focus={focus ? lineRows.find((r) => r.o.id === focus) && `${focus}:${lineRows.find((r) => r.o.id === focus)!.l.id}` : undefined}
           cols={[
-            { key: 'id', label: 'Order', render: (r) => <button type="button" className="rt-lot" aria-pressed={order?.id === r.o.id} onClick={() => setSel(r.o.id)}>{r.o.id}</button> },
-            { key: 'd', label: 'Distributor', render: (r) => r.o.partyId },
-            { key: 'g', label: 'Grade', render: (r) => r.l.grade },
-            { key: 'q', label: 'Ordered', num: true, render: (r) => <Qty g={r.b.ordered} /> },
-            { key: 'res', label: 'Reserved', num: true, render: (r) => <Qty g={r.b.reserved} /> },
-            { key: 'dsp', label: 'Dispatched', num: true, render: (r) => <Qty g={r.b.dispatched} /> },
-            { key: 'tr', label: 'In transit', num: true, render: (r) => <Qty g={r.b.inTransit} /> },
-            { key: 'rcv', label: 'Delivered', num: true, render: (r) => <Qty g={r.b.delivered} /> },
+            { key: 'id', label: 'Order · distributor', render: (r) => <span className="rt-nowrap"><button type="button" className="rt-lot" aria-pressed={order?.id === r.o.id} onClick={() => setSel(r.o.id)}>{r.o.id}</button> · {r.o.partyId}</span> },
+            { key: 'g', label: 'Grade · ordered', render: (r) => <span className="rt-nowrap">{r.l.grade} · <Qty g={r.b.ordered} /></span> },
             { key: 'un', label: 'Open', num: true, render: (r) => <Qty g={r.b.unallocated} strong={r.b.unallocated > 0} /> },
-            { key: 'p', label: 'Promised', render: (r) => r.o.promisedDate ?? '—' },
+            { key: 'p', label: 'Promised', render: (r) => <span className="rt-nowrap">{r.o.promisedDate ?? '—'}</span> },
             { key: 'st', label: 'Status', render: (r) => <OrderStatusChip order={r.o} /> },
           ]}
           rows={lineRows}
@@ -106,10 +117,14 @@ export default function Orders() {
           rowClass={(r) => (order?.id === r.o.id ? 'is-total' : undefined)}
           empty="No factory orders in your area."
         />
-        <Details summary="Rate snapshot and cancelled quantity per line">
+        <Details summary="Line balances, rate snapshot and cancelled quantity">
           <Table
             cols={[
               { key: 'id', label: 'Order / line', render: (r) => `${r.o.id} · ${r.l.id}` },
+              { key: 'res', label: 'Reserved', num: true, render: (r) => <Qty g={r.b.reserved} /> },
+              { key: 'dsp', label: 'Dispatched', num: true, render: (r) => <Qty g={r.b.dispatched} /> },
+              { key: 'tr', label: 'In transit', num: true, render: (r) => <Qty g={r.b.inTransit} /> },
+              { key: 'rcv', label: 'Delivered', num: true, render: (r) => <Qty g={r.b.delivered} /> },
               { key: 'rate', label: 'Rate at order', render: (r) => <span>{fmtINR(r.l.ratePerKg)}/kg <Ref>{r.l.rateVersion}</Ref></span> },
               { key: 'c', label: 'Cancelled', num: true, render: (r) => <Qty g={r.b.cancelled} /> },
             ]}
@@ -118,10 +133,15 @@ export default function Orders() {
           />
         </Details>
       </Panel>
+      <OrderCharts s={s} orders={orders} order={order} base={wsBase(db.session.workspaceId)} rows={rows} shipments={shipments} only="pipeline" />
+      </div>
 
       {order && <OrderDetail key={order.id} order={order} transporters={transporters} />}
+        </>
+      )}
 
-      <Grid>
+      {tab === 'stock' && (
+      <div className="rt-split2">
         <Panel title="Finished stock and reservations" meta="Reserving does not move or reduce physical stock">
           <Table
             cols={[
@@ -161,10 +181,15 @@ export default function Orders() {
             empty="No active reservations."
           />
         </Panel>
-      </Grid>
+      </div>
+      )}
 
+      {tab === 'shipments' && (
+        <>
+      <OrderCharts s={s} orders={orders} order={order} base={wsBase(db.session.workspaceId)} focus={focus && orderIds.has(focus) ? focus : undefined} rows={rows} shipments={shipments} only="fulfilment" />
       <Panel title="Shipments">
         <Table
+          focus={focus}
           cols={[
             { key: 'id', label: 'Shipment', render: (sh) => <Ref>{sh.id}</Ref> },
             { key: 'o', label: 'Order', render: (sh) => sh.orderId },
@@ -191,6 +216,8 @@ export default function Orders() {
           />
         </Details>
       </Panel>
+        </>
+      )}
 
       <ImplNote>
         Reservation without physical change (FR-039, BR-019); FEFO over eligible stock only (FR-032, EC-25); line balance buckets (FR-042); dispatch weight check net vs packaging vs vehicle tare (FR-040, FR-104, BR-028); single transit movement, idempotent (FR-041); cancel only undispatched quantity (FR-056, EC-26); advance bookings never reserve (FR-054, BR-025); credit limit (BR-009); rate snapshot (FR-051). Sales documents queue for Tally at dispatch <Sim what="Tally simulated" />. Visibility follows the read scope in domain/rentio/scope.ts.

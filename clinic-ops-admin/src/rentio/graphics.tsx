@@ -14,6 +14,8 @@ import { userName } from '../domain/rentio/access';
 import type { RunEvent, StageRun } from '../domain/rentio/types';
 import { fmtDuration, fmtKg, type Grams, sum } from '../domain/rentio/units';
 import { Details } from './ui';
+import { StatusChip } from '../components/primitives/feedback';
+import type { Tone } from '../metadata/types';
 
 // ---------------------------------------------------------------- colours by job
 
@@ -41,6 +43,8 @@ export interface Seg {
   pattern?: boolean;
   /** legend-only swatch style (e.g. outline / dashed marker) */
   swatch?: 'outline' | 'dashed';
+  /** drawn (e.g. free capacity) but not part of the quantity total */
+  notCounted?: boolean;
 }
 
 export interface BarRow {
@@ -82,8 +86,9 @@ export function StackBars({
   focus?: string;
 }) {
   const used = segs.filter((s) => rows.some((r) => (r.values[s.key] ?? 0) > 0));
-  const total = (r: BarRow) => sum(used.map((s) => r.values[s.key] ?? 0));
-  const max = fixedMax ?? Math.max(1, ...rows.map(total));
+  const total = (r: BarRow) => sum(used.filter((s) => !s.notCounted).map((s) => r.values[s.key] ?? 0));
+  const drawn = (r: BarRow) => sum(used.map((s) => r.values[s.key] ?? 0));
+  const max = fixedMax ?? Math.max(1, ...rows.map(drawn));
   return (
     <figure className="rt-chart rt-viz" aria-label={title}>
       <figcaption className="rt-chart-head">
@@ -210,26 +215,34 @@ export interface FlowNode {
  */
 export function FlowChain({ title, caption, nodes, unitNote }: { title: string; caption?: string; nodes: FlowNode[]; unitNote?: string }) {
   const max = Math.max(1, ...nodes.map((n) => n.magnitude ?? 0));
+  const TONE: Record<NonNullable<FlowNode['status']>['tone'], Tone> = { good: 'success', info: 'info', warn: 'warning', bad: 'danger', muted: 'neutral' };
   return (
     <figure className="rt-chart rt-viz rt-fc-wrap" aria-label={title}>
       <figcaption className="rt-chart-head">
         <strong>{title}</strong>
         {caption && <span className="muted small">{caption}</span>}
       </figcaption>
-      <ol className="rt-fc">
+      {/* equal-width, equal-height steps in one row; wraps to 4 per row / one column in narrow cards (container queries) */}
+      <ol className={cx('rt-fc', nodes.length > 5 && 'is-long')} style={{ ['--n' as string]: nodes.length }}>
         {nodes.map((n, i) => {
           const body = (
             <>
-              <span className="rt-fc-step">{n.done ? '✓' : i + 1}</span>
-              <span className="rt-fc-label">{n.label}</span>
-              <span className="rt-fc-value">{n.value}</span>
-              {n.magnitude !== undefined && (
-                <span className="rt-fc-bar" aria-hidden="true">
-                  <span style={{ width: pct(n.magnitude, max) }} />
+              <span className="rt-fc-top">
+                <span className="rt-fc-label" title={n.label}>
+                  {n.label}
                 </span>
-              )}
-              {n.sub && <span className="rt-fc-sub">{n.sub}</span>}
-              {n.status && <span className={cx('rt-fc-status', `tone-${n.status.tone}`)}>{n.status.label}</span>}
+                <span className="rt-fc-step" aria-hidden="true">
+                  {n.done ? '✓' : i + 1}
+                </span>
+              </span>
+              <span className="rt-fc-value">{n.value}</span>
+              <span className="rt-fc-bar" aria-hidden="true">
+                {n.magnitude !== undefined && <span style={{ width: pct(n.magnitude, max) }} />}
+              </span>
+              <span className="rt-fc-sub" title={n.sub}>
+                {n.sub ?? ' '}
+              </span>
+              <span className="rt-fc-status">{n.status ? <StatusChip label={n.status.label} tone={TONE[n.status.tone]} /> : null}</span>
             </>
           );
           return (
@@ -244,8 +257,10 @@ export function FlowChain({ title, caption, nodes, unitNote }: { title: string; 
               {n.exits && n.exits.length > 0 && (
                 <ul className="rt-fc-exits" aria-label={`Leaving the flow at ${n.label}`}>
                   {n.exits.map((x) => (
-                    <li key={x.label} className={cx(x.tone === 'warn' && 'is-warn')}>
-                      <span aria-hidden="true">↳</span> {x.label} <strong>{x.value}</strong>
+                    <li key={x.label} className={cx(x.tone === 'warn' && 'is-warn')} title={`${x.label} ${x.value}`}>
+                      <span aria-hidden="true">↳</span>
+                      <span className="rt-fc-exit-label">{x.label}</span>
+                      <strong>{x.value}</strong>
                     </li>
                   ))}
                 </ul>

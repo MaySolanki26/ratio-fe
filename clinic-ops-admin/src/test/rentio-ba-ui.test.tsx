@@ -41,6 +41,8 @@ const click = (name: RegExp, scope: HTMLElement = document.body) => rtlAct(() =>
 describe('BA-1 repack through Godowns & stacks', () => {
   it('Ravi records 200 → 199 × 1 kg + 1 kg loss; source intact until Meera releases; then posted once', () => {
     as('u_ravi', 'stock/godowns');
+    // repacking lives on its own tab of Godowns & stacks (UX round: one job per tab)
+    fireEvent.click(screen.getByRole('tab', { name: /^Repack/ }));
     click(/^Record repack$/);
     set(/Packed lot and stack/, 'MIG-0030@F1-S04');
     set(/Released net input/, '200');
@@ -71,6 +73,8 @@ describe('BA-1 repack through Godowns & stacks', () => {
 
   it('an unbalanced entry is shown in the preview and refused without changing stock', () => {
     as('u_ravi', 'stock/godowns');
+    // repacking lives on its own tab of Godowns & stacks (UX round: one job per tab)
+    fireEvent.click(screen.getByRole('tab', { name: /^Repack/ }));
     click(/^Record repack$/);
     set(/Packed lot and stack/, 'MIG-0030@F1-S04');
     set(/Released net input/, '200');

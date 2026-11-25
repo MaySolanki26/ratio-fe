@@ -1,0 +1,45 @@
+/* UX round (fork B): stock, procurement and planning page layouts. Tokens only. */
+/* long per-row details (suggestion inputs) folded into the cell so rows stay one line high */
+.rt-cell-more > summary {
+  cursor: pointer;
+  color: var(--s-text-secondary);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+.rt-cell-more > summary:focus-visible {
+  outline: 2px solid var(--s-focus);
+  outline-offset: 2px;
+}
+.rt-cell-more[open] > .rt-inputs {
+  margin-top: 4px;
+}
+.rt-cell-more[open] > .muted {
+  margin-top: 4px;
+  max-width: 48ch;
+}
+/* page-header actions stay at the right end even when the intro wraps them onto their own line */
+.rt-headrow > .rt-headrow-actions {
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+/* filter + search on one line in a panel header */
+.rt-filterbar {
+  flex-wrap: nowrap;
+}
+.rt-filterbar > .input {
+  width: auto;
+  min-width: 0;
+}
+.rt-filterbar > input.input {
+  width: 240px;
+}
+@media (max-width: 720px) {
+  .rt-filterbar {
+    flex-wrap: wrap;
+  }
+  .rt-filterbar > .input,
+  .rt-filterbar > input.input {
+    width: 100%;
+  }
+}

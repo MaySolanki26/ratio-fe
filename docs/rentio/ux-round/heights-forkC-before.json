@@ -1,0 +1,70 @@
+{
+ "at": "2026-11-25T04:58:44.020Z",
+ "viewport": "1440x900",
+ "out": [
+  {
+   "page": "production/stages",
+   "user": "u_fhead",
+   "height": 1864,
+   "screens": 2.2,
+   "horizontalScroll": false
+  },
+  {
+   "page": "production/grading",
+   "user": "u_fhead",
+   "height": 1557,
+   "screens": 1.8,
+   "horizontalScroll": false
+  },
+  {
+   "page": "production/handovers",
+   "user": "u_fhead",
+   "height": 1094,
+   "screens": 1.3,
+   "horizontalScroll": false
+  },
+  {
+   "page": "production/close",
+   "user": "u_fhead",
+   "height": 1126,
+   "screens": 1.3,
+   "horizontalScroll": false
+  },
+  {
+   "page": "distribution/orders",
+   "user": "u_kiran",
+   "height": 2434,
+   "screens": 2.9,
+   "horizontalScroll": false
+  },
+  {
+   "page": "distribution/distributors",
+   "user": "u_dinesh",
+   "height": 1359,
+   "screens": 1.6,
+   "horizontalScroll": false
+  },
+  {
+   "page": "distribution/logistics",
+   "user": "u_kiran",
+   "height": 1094,
+   "screens": 1.3,
+   "horizontalScroll": false
+  },
+  {
+   "page": "sales/salesman",
+   "user": "u_rohit",
+   "height": 1187,
+   "screens": 1.4,
+   "horizontalScroll": false
+  },
+  {
+   "page": "sales/returns",
+   "user": "u_meera",
+   "height": 1865,
+   "screens": 2.2,
+   "horizontalScroll": false
+  }
+ ],
+ "errors": []
+}

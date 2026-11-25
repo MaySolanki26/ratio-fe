@@ -1,3 +1,5 @@
+import { stockRows } from '../../domain/rentio/engine';
+import { orderStatus } from '../../domain/rentio/commerce';
 /** Owner overview — decisions first, then where the stock is, what is running, and promised deliveries. */
 import type { MouseEvent } from 'react';
 import { Navigate } from 'react-router-dom';
@@ -9,12 +11,12 @@ import { type Alert, alerts, alertsFor, ctaFor, distributorOverview, stageFunnel
 import { incidentView } from '../../domain/rentio/incidents';
 import { openSuggestions, scopedSuggestions } from '../../domain/rentio/replenish';
 import { DeliveryOutcomeChart, FinishedByGradeChart } from './Charts';
-import { FlowChain, RunTimeline, StackBars, STATUS } from '../graphics';
+import { FlowChain, RunTimeline } from '../graphics';
 import { routeFlow, stockFlow } from '../flows';
 import { scopedRuns } from '../../domain/rentio/scope';
 import { wsBase } from '../../lib/routes';
 import { useR } from '../store';
-import { Details, Eta, ImplNote, OrderStatusChip, PageLink, Panel, Qty, RPage, Sim, Status, Table, fmtTime } from '../ui';
+import { Details, Eta, ImplNote, OrderStatusChip, PageLink, Panel, RPage, Sim, Status, Table, fmtTime } from '../ui';
 
 function DecisionRow({ a, actor }: { a: Alert; actor: RActor }) {
   const cta = ctaFor(a, actor);
@@ -49,8 +51,6 @@ export default function ControlTower() {
   const rows = scopedStockRows(s, actor, now).filter((r) => r.lot.unit !== 'bag' && r.lot.material !== 'OIL');
   const kind = (k: string[]) => rows.filter((r) => k.includes(r.location?.kind));
   const fin = kind(['finished']).filter((r) => r.lot.material === 'PACKED' || r.lot.material === 'DAL');
-  const kgOf = (rs: typeof rows) => sum(rs.map((r) => r.qty));
-  const bags = (rs: typeof rows) => sum(rs.filter((r) => r.lot.bagSize).map((r) => Math.floor(r.qty / r.lot.bagSize!)));
   const all = alertsFor(db, actor, now);
   const isOwner = actor.roleId === 'owner';
   // decisions = only genuine authority exceptions; escalations are risks someone else still owns
@@ -60,7 +60,14 @@ export default function ControlTower() {
   const funnel = stageFunnel(s, now).filter((f) => f.queue + f.running + f.held + f.output + f.pendingIn > 0);
   const distRows = sc.all || sc.allDistributors ? distributorOverview(db, now) : [];
   const orders = scopedOrders(s, actor).filter((o) => o.kind === 'factory' && !['cancelled', 'closed'].includes(o.status) && !o.revisions.some((r) => r.change.startsWith('Inter-distributor')));
-  const grades = [...new Set(fin.map((r) => r.lot.grade ?? '—'))].sort();
+  // most urgent first: problems (dispute, stock on hold, credit hold, short) before routine, then by promised date;
+  // every problem order is listed even beyond five so nothing at risk is hidden from the owner
+  const URGENCY: Partial<Record<string, number>> = { at_risk: 0, disputed: 1, credit_hold: 2, awaiting_stock: 3, partly_allocated: 3, partially_delivered: 4 };
+  const allRows = stockRows(s, now);
+  const sellable = (lotId: string, loc: string) => !!allRows.find((x) => x.lotId === lotId && x.loc === loc)?.sellable;
+  const rank = (o: (typeof orders)[number]) => URGENCY[orderStatus(s, o, sellable).code] ?? 9; // same status as the chip
+  const sortedOrders = [...orders].sort((a, b) => rank(a) - rank(b) || (a.promisedDate ?? '9999').localeCompare(b.promisedDate ?? '9999'));
+  const urgentOrders = sortedOrders.filter((o, i) => i < 5 || rank(o) < 9);
   const today = new Date(Date.parse(now) + 330 * 60_000).toISOString().slice(0, 10);
   const live = alerts(db, now);
   // read-scoped like Incidents and Replenishment: no child titles, owners or quantities outside the role's scope
@@ -81,15 +88,16 @@ export default function ControlTower() {
       title="Owner overview"
       description="What needs you, where the stock is, what is running and which deliveries are at risk."
       actions={
-        <a className="btn btn-secondary" href="#owner-charts" onClick={toCharts}>
-          <span className="btn-label">View stock and delivery charts</span>
-        </a>
+        <div className="rt-headrow">
+          <p className="rt-intro">Plant 1 · {fmtTime(now)} IST · figures update as staff post work</p>
+          <a className="btn btn-secondary" href="#owner-charts" onClick={toCharts}>
+            <span className="btn-label">View stock and delivery charts</span>
+          </a>
+        </div>
       }
     >
-      <p className="rt-intro">
-        Plant 1 · {fmtTime(now)} IST · figures update as staff post work{s.dataset === 'completed' ? '' : ''}.
-      </p>
 
+      <div className="rt-split2">
       <Panel title={isOwner ? 'Needs your decision' : 'Needs you'} meta={needsMe.length ? `${needsMe.length}` : 'none'}>
         {needsMe.length ? needsMe.map((a) => <DecisionRow key={a.key} a={a} actor={actor} />) :<p className="rt-empty">Nothing needs you right now — routine work is with your staff.</p>}
       </Panel>
@@ -97,6 +105,7 @@ export default function ControlTower() {
       <Panel title="Top risks" meta={`${risks.length} of ${all.length} open items${escalatedToMe.length ? ` · ${escalatedToMe.length} escalated to you` : ''}`} actions={<PageLink to="home/alerts">All exceptions</PageLink>}>
         {risks.length ? risks.map((a) => <DecisionRow key={a.key} a={a} actor={actor} />) :<p className="rt-empty">No high or critical risks.</p>}
       </Panel>
+      </div>
 
       {/* charts sit straight after decisions and risks (and are reachable from the header shortcut) */}
       <section id="owner-charts" tabIndex={-1} aria-label="Owner charts" className="rt-charts">
@@ -112,28 +121,10 @@ export default function ControlTower() {
         </div>
         <FinishedByGradeChart fin={fin} base={base} />
         <DeliveryOutcomeChart s={s} base={base} visible={(d) => sc.all || sc.allDistributors || sc.distributors.includes(d)} />
-        <StackBars
-          title="Open exceptions by area"
-          caption="Count of open items in your view, by severity · open the list for names and actions"
-          format={(n) => String(n)}
-          segs={[
-            { key: 'critical', label: 'Critical', color: STATUS.bad },
-            { key: 'high', label: 'High', color: STATUS.warn },
-            { key: 'medium', label: 'Medium', color: STATUS.info },
-            { key: 'low', label: 'Low', color: STATUS.faint },
-          ]}
-          rows={(['decision', 'delivery', 'production', 'stock', 'money'] as const)
-            .map((fam) => {
-              const xs = all.filter((a) => a.family === fam);
-              const v: Record<string, number> = {};
-              xs.forEach((a) => (v[a.severity] = (v[a.severity] ?? 0) + 1));
-              const label = { decision: 'Decisions', delivery: 'Deliveries', production: 'Production', stock: 'Stock & quality', money: 'Money' }[fam];
-              return { id: fam, label, text: label, to: `${base}/home/alerts`, values: v };
-            })
-            .filter((r) => Object.keys(r.values).length > 0)}
-          rowHeader="Area"
-          empty="No open exceptions."
-        />
+      </section>
+
+      <div className="rt-split2">
+      <div className="rt-stack">
         <RunTimeline
           title="Runs in progress — planned vs actual"
           caption="Working time, holds and time past the planned finish"
@@ -141,9 +132,7 @@ export default function ControlTower() {
           now={now}
           labelOf={(r) => `${stageName(r.stage)} · ${r.inputLotId}`}
         />
-      </section>
-
-      {(incidents.length > 0 || hasCap(actor, 'page:home/incidents')) && (
+      {incidents.length > 0 && (
         <Panel title="Incidents" meta={incidents.length ? `${incidents.length} open` : 'none open'} actions={hasCap(actor, 'page:home/incidents') ? <PageLink to="home/incidents">All incidents</PageLink> : undefined}>
           {incidents.length ? (
             <ul className="rt-brief">
@@ -173,7 +162,7 @@ export default function ControlTower() {
         <Panel title="Replenishment to review" meta={`${replen.length} suggestion(s) · nothing is bought or sent automatically`} actions={<PageLink to="planning/replenish">All suggestions</PageLink>}>
           {replen.length ? (
             <ul className="rt-brief">
-              {replen.slice(0, 4).map((x) => (
+              {replen.slice(0, 3).map((x) => (
                 <li key={x.key}>
                   {x.needsConfirmation ? <Status s="stale" /> : <span className="rt-dot" aria-hidden="true" />}
                   <div>
@@ -195,8 +184,26 @@ export default function ControlTower() {
       )}
 
 
-      <Panel title="Production now" meta="Open a stage to see the lot and who is acting" actions={<PageLink to="production/stages">Stage board</PageLink>}>
+      </div>
+      <Panel title="Delivery promises" meta={orders.length > urgentOrders.length ? `${urgentOrders.length} most urgent of ${orders.length}` : undefined} actions={<PageLink to="distribution/orders">All orders</PageLink>}>
         <Table
+          rows={urgentOrders}
+          rowKey={(o) => o.id}
+          empty="No open orders."
+          cols={[
+            { key: 'id', label: 'Order', render: (o) => (<><PageLink to={`distribution/orders?focus=${o.id}`}>{o.id}</PageLink><div className="muted small">{o.partyId} · {o.lines.map((l) => `${l.grade} ${fmtKg(l.qty - l.cancelled)}`).join(', ')}</div></>) },
+            { key: 'd', label: 'Promised', render: (o) => (o.promisedDate ? new Date(`${o.promisedDate}T00:00:00+05:30`).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—') },
+            // one shared derivation with Orders & dispatch and the distributor views
+            { key: 'st', label: 'Status', render: (o) => <OrderStatusChip order={o} /> },
+          ]}
+        />
+      </Panel>
+      </div>
+
+      <Details summary={`More detail — production by stage (${funnel.length} active)${distRows.length ? ` · distributors to follow up (${distRows.filter((d) => d.stale || d.belowMin || d.openDisputes || d.nearExpiry).length})` : ''} · money and delegated work`}>
+        <div className="rt-stack">
+          <h3 className="rt-h3">Production by stage</h3>
+          <Table
           rows={funnel}
           rowKey={(f) => f.code}
           empty="Nothing in process."
@@ -209,47 +216,10 @@ export default function ControlTower() {
             { key: 'o', label: 'Responsible', render: (f) => f.ownerName },
           ]}
         />
-      </Panel>
-
-      <Panel title="Finished stock by grade" meta="Factory godown F1" actions={<PageLink to="stock/godowns">Stacks</PageLink>}>
-        <Table
-          rows={grades}
-          rowKey={(g) => g}
-          empty="No finished stock."
-          cols={[
-            { key: 'g', label: 'Grade', render: (g) => <strong>{g}</strong> },
-            { key: 'b', label: 'Bags', num: true, render: (g) => bags(fin.filter((r) => (r.lot.grade ?? '—') === g)).toLocaleString('en-IN') },
-            { key: 'k', label: 'Kg', num: true, render: (g) => fmtKg(kgOf(fin.filter((r) => (r.lot.grade ?? '—') === g))) },
-            { key: 'a', label: 'Free to sell', num: true, render: (g) => <Qty g={sum(fin.filter((r) => (r.lot.grade ?? '—') === g).map((r) => r.available))} strong /> },
-            { key: 'r', label: 'Reserved', num: true, render: (g) => fmtKg(sum(fin.filter((r) => (r.lot.grade ?? '—') === g).map((r) => r.reserved))) },
-            { key: 'h', label: 'On hold', num: true, render: (g) => { const q = sum(fin.filter((r) => (r.lot.grade ?? '—') === g && r.held).map((r) => r.qty)); return q ? <span className="tone-text-warning">{fmtKg(q)}</span> : '—'; } },
-          ]}
-        />
-      </Panel>
-
-      <Panel title="Delivery promises" actions={<PageLink to="distribution/orders">Orders</PageLink>}>
-        <Table
-          rows={orders}
-          rowKey={(o) => o.id}
-          empty="No open orders."
-          cols={[
-            { key: 'id', label: 'Order', render: (o) => <PageLink to={`distribution/orders?focus=${o.id}`}>{o.id}</PageLink> },
-            { key: 'p', label: 'Distributor', render: (o) => o.partyId },
-            { key: 'g', label: 'Grade · qty', render: (o) => o.lines.map((l) => `${l.grade} ${fmtKg(l.qty - l.cancelled)}`).join(', ') },
-            { key: 'd', label: 'Promised', render: (o) => o.promisedDate ?? '—' },
-            {
-              key: 'st',
-              label: 'Status',
-              // one shared derivation with Orders & dispatch and the distributor views
-              render: (o) => <OrderStatusChip order={o} />,
-            },
-          ]}
-        />
-      </Panel>
-
-      {distRows.length > 0 && (
-        <Details summary={`Distributors needing follow-up (${distRows.filter((d) => d.stale || d.belowMin || d.openDisputes || d.nearExpiry).length})`}>
-          <Table
+          {distRows.length > 0 && (
+            <>
+              <h3 className="rt-h3">Distributors to follow up</h3>
+              <Table
             rows={distRows.filter((d) => d.stale || d.belowMin || d.openDisputes || d.nearExpiry)}
             rowKey={(d) => d.id}
             cols={[
@@ -259,15 +229,15 @@ export default function ControlTower() {
               { key: 'w', label: 'Why', render: (d) => [d.belowMin && 'below minimum', d.openDisputes && 'receipt dispute', d.nearExpiry && 'stock near expiry'].filter(Boolean).join(', ') || 'old figures' },
             ]}
           />
-        </Details>
-      )}
-
-      <Details summary="Money and delegated work">
-        <p className="muted">
+            </>
+          )}
+          <h3 className="rt-h3">Money and delegated work</h3>
+          <p className="muted">
           {staffTx} postings by staff today without owner involvement · {s.approvals.filter((a) => a.status === 'pending').length} approvals waiting with delegated approvers · {s.orders.filter((o) => o.status === 'credit_hold').length} order(s) on credit hold ·{' '}
           {s.tally.filter((t) => t.status === 'failed' || t.status === 'status_unknown').length} Tally problem(s) · {fmtINR(sum(s.tally.filter((t) => t.status === 'queued').map((t) => t.amount)), true)} waiting to sync <Sim what="Tally simulated" /> ·{' '}
           {s.collections.filter((c) => c.status === 'provisional').length} collection(s) awaiting Accounts.
         </p>
+        </div>
       </Details>
       {!needsMe.length && !risks.length && <InlineAlert tone="success">The mill is running within plan.</InlineAlert>}
       <ImplNote>

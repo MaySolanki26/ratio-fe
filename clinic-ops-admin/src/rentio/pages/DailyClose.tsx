@@ -10,6 +10,7 @@ import { fmtKg, sum } from '../../domain/rentio/units';
 import { newKey, useAct, useR } from '../store';
 import { CloseGraphics } from './_graphA';
 import { readScope, scopedHandovers, scopedRuns } from '../../domain/rentio/scope';
+import '../../styles/rentio-ux-c.css';
 import { Details, ImplNote, Kpi, KpiRow, LotLink, Panel, Ref, RPage, Status, Table, Who, fmtTime } from '../ui';
 
 const istDate = (iso: string) => new Date(Date.parse(iso) + 330 * 60_000).toISOString().slice(0, 10);
@@ -39,18 +40,24 @@ export default function DailyClose() {
   ];
   const already = (s.closes ?? []).find((c) => c.date === date && c.stage === stage);
   return (
-    <RPage title="Daily close" description="Confirm today's work; anything still open is carried to the next shift, never marked done.">
-      <div className="rt-row">
-        <label className="field-label" htmlFor="dc-stage">Scope</label>
-        <select id="dc-stage" className="input" style={{ maxWidth: 240 }} value={stage} onChange={(e) => setStage(e.target.value)}>
-          {(sc.factory || stageChoices.length > 1) && <option value="ALL">{sc.factory ? 'Whole factory' : 'All my stages'}</option>}
-          {stageChoices.map((st) => (
-            <option key={st.code} value={st.code}>{st.label}</option>
-          ))}
-        </select>
-        <label className="field-label" htmlFor="dc-date">Date</label>
-        <input id="dc-date" className="input" type="date" style={{ maxWidth: 180 }} value={date} onChange={(e) => setDate(e.target.value)} />
-      </div>
+    <RPage
+      title="Daily close"
+      description="Confirm today's work; anything still open is carried to the next shift, never marked done."
+      actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">Open work is carried to the next shift, never marked done.</p>
+          <label className="field-label" htmlFor="dc-stage">Scope</label>
+          <select id="dc-stage" className="input rt-input-narrow" value={stage} onChange={(e) => setStage(e.target.value)}>
+            {(sc.factory || stageChoices.length > 1) && <option value="ALL">{sc.factory ? 'Whole factory' : 'All my stages'}</option>}
+            {stageChoices.map((st) => (
+              <option key={st.code} value={st.code}>{st.label}</option>
+            ))}
+          </select>
+          <label className="field-label" htmlFor="dc-date">Date</label>
+          <input id="dc-date" className="input rt-input-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+      }
+    >
       <KpiRow>
         <Kpi label="Runs completed" value={completed.length} note={fmtKg(sum(completed.flatMap((r) => r.outputs.filter((o) => o.kind === 'forward').map((o) => o.qty))))} />
         <Kpi label="Open runs carried" value={open.length} tone={open.length ? 'warning' : undefined} />

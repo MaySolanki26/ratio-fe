@@ -7,8 +7,9 @@ import { SAMPLE_ATTENDANCE_CSV } from '../../domain/rentio/fixtures';
 import * as P from '../../domain/rentio/people';
 import { fmtINR, sum } from '../../domain/rentio/units';
 import { newKey, useAct, useR } from '../store';
-import { Grid, ImplNote, Kpi, KpiRow, Panel, Ref, RPage, Sim, Status, Table, fmtTime, useFocusId } from '../ui';
+import { ImplNote, Kpi, KpiRow, Panel, Ref, RPage, Sim, Status, Table, fmtTime, useFocusId } from '../ui';
 import { HoursChart } from './_graphB';
+import { PageTabs, usePageTab } from './_uxA';
 
 const SMALL_SAMPLE = `employee,time,dir
 EMP-014,2026-11-25T09:00:00+05:30,in
@@ -27,6 +28,7 @@ export default function Attendance() {
   const [fileName, setFileName] = useState('biometric-2026-11-25.csv');
   const periods = [...new Set(s.punches.map((p) => p.at.slice(0, 7)))].sort().reverse();
   const [period, setPeriod] = useState(periods[0] ?? '2026-11');
+  const [asked, setTab] = usePageTab(['attendance', 'import', 'payroll'] as const, isHR ? 'attendance' : 'payroll', focus && s.imports.some((i) => i.id === focus) ? 'import' : focus && s.payroll.some((r) => r.id === focus) ? 'payroll' : undefined);
 
   if (!isHR && !isAuth)
     return (
@@ -41,6 +43,7 @@ export default function Attendance() {
   const emps = db.records.employees ?? [];
   const runs = [...s.payroll].reverse();
   const pendingDraft = s.payroll.find((p) => p.period === period && p.status === 'draft');
+  const tab = isHR ? asked : 'payroll';
 
   return (
     <RPage
@@ -52,8 +55,24 @@ export default function Attendance() {
         </>
       }
     >
-      {isHR && (
-        <Grid cols={2}>
+      <PageTabs
+        label="Attendance sections"
+        extra={
+          <select className="input" aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value)}>
+            {(periods.length ? periods : [period]).map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
+        }
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          ...(isHR ? [{ id: 'attendance' as const, label: 'Attendance summary' }, { id: 'import' as const, label: 'Import punches', count: s.imports.length }] : []),
+          { id: 'payroll' as const, label: 'Payroll runs', count: runs.length },
+        ]}
+      >
+      {isHR && tab === 'import' && (
+        <div className="rt-split2">
           <Panel title="Import attendance file" meta="CSV: employee,time,dir">
             <div className="rt-form">
               <div className="form-field">
@@ -62,7 +81,7 @@ export default function Attendance() {
               </div>
               <div className="form-field">
                 <label className="field-label" htmlFor="att-text">File contents</label>
-                <textarea id="att-text" className="textarea input" rows={8} value={text} onChange={(e) => setText(e.target.value)} />
+                <textarea id="att-text" className="textarea input" rows={6} value={text} onChange={(e) => setText(e.target.value)} />
                 <span className="field-help">EMP-099 is deliberately unknown → counted as invalid, isolated for review.</span>
               </div>
               <div className="rt-row">
@@ -102,37 +121,33 @@ export default function Attendance() {
               ]}
             />
           </Panel>
-        </Grid>
+        </div>
       )}
 
-      {isHR && (
+      {isHR && tab === 'attendance' && (
         <Panel
           title="Attendance summary"
-          meta="Paired in/out punches; OT after 8 h (demo)"
-          actions={
-            <select className="input" aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value)}>
-              {(periods.length ? periods : [period]).map((p) => (
-                <option key={p}>{p}</option>
-              ))}
-            </select>
-          }
+          meta={`${period} · paired in/out punches; OT after 8 h (demo); night shifts count to the start day`}
         >
+          <div className="rt-split2">
           <HoursChart rows={emps.filter((e) => att[e.id]).map((e) => ({ id: String(e.id), name: String(e.name), hours: att[e.id].hours, ot: att[e.id].otHours }))} />
           <Table
             rows={emps.map((e) => ({ e, a: att[e.id] }))}
             rowKey={(r) => r.e.id}
             cols={[
-              { key: 'n', label: 'Employee', render: (r) => `${r.e.id} · ${r.e.name}` },
-              { key: 's', label: 'Shift', render: (r) => (r.e.shift === 'night' ? 'Night (overnight → start day)' : 'Day') },
+              { key: 'n', label: 'Employee', render: (r) => <span title={String(r.e.id)}>{String(r.e.name)}</span> },
+              { key: 's', label: 'Shift', render: (r) => (r.e.shift === 'night' ? 'Night' : 'Day') },
               { key: 'd', label: 'Days', num: true, render: (r) => r.a?.days.size ?? 0 },
               { key: 'h', label: 'Hours', num: true, render: (r) => (r.a ? r.a.hours.toFixed(1) : '0') },
               { key: 'o', label: 'OT h', num: true, render: (r) => (r.a ? r.a.otHours.toFixed(1) : '0') },
               { key: 'x', label: 'Exceptions', render: (r) => (r.a?.exceptions.length ? r.a.exceptions.join('; ') : '—') },
             ]}
           />
+          </div>
         </Panel>
       )}
 
+      {tab === 'payroll' && (
       <Panel
         title="Payroll runs"
         meta="Versioned; authorization by a different user (Accounts) in Approvals"
@@ -192,6 +207,8 @@ export default function Attendance() {
         )}
         <p className="rt-empty">An authorized run is never edited: drafting again for the same period creates a new version that supersedes it. Bank file and PF/ESI outputs are not generated in this prototype.</p>
       </Panel>
+      )}
+      </PageTabs>
       <ImplNote>HR and payroll (M15): FR-083 file import with duplicate detection, FR-084 overnight shift and OT, FR-085/086 versioned payroll authorized by a different user, NFR-04 restricted pay data.</ImplNote>
     </RPage>
   );

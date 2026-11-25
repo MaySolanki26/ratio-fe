@@ -39,14 +39,16 @@ export default function Inbox() {
       title="Inbox"
       description="Things that need you: your next actions and the alerts you are accountable for. Each item opens the exact record."
       actions={
-        <Button onClick={() => markInboxRead(actor.id, unread.map((i) => ({ key: i.key, title: i.title, link: i.link })))} disabledReason={unread.length ? undefined : 'Nothing unread'}>
-          Mark all read
-        </Button>
+        <div className="rt-headrow">
+          <p className="rt-intro">
+            <strong>{actor.name}</strong> · {role?.label ?? actor.roleLabel} · {readScope(actor).label}
+          </p>
+          <Button onClick={() => markInboxRead(actor.id, unread.map((i) => ({ key: i.key, title: i.title, link: i.link })))} disabledReason={unread.length ? undefined : 'Nothing unread'}>
+            Mark all read
+          </Button>
+        </div>
       }
     >
-      <p className="rt-intro">
-        <strong>{actor.name}</strong> · {role?.label ?? actor.roleLabel} · {readScope(actor).label}
-      </p>
       <div className="rt-inbox-bar">
         <div className="segmented" role="radiogroup" aria-label="Show">
           {(['all', 'unread'] as const).map((f) => (

@@ -56,7 +56,7 @@
 }
 .rt-panel-title {
   margin: 0;
-  font-size: var(--fs-primary);
+  font-size: var(--fs-secondary);
   font-weight: var(--fw-semibold);
 }
 .rt-panel-meta {
@@ -732,125 +732,209 @@
 }
 
 /* ---------------------------------------------------------------- Demo sign-in */
+/* Warm "Swadeshi" palette taken from public/login-bg.jpg: cream paper, maroon wordmark, brown ink, brass. */
 .rt-login {
+  --login-paper: #fbf3e6;
+  --login-card: #fffaf2;
+  --login-ink: #3b1f12;
+  --login-muted: #7a5a44;
+  --login-line: #e8d5b5;
+  --login-maroon: #a3162b;
+  --login-maroon-dark: #7e0f20;
+  --login-brass: #c8932e;
+  position: relative;
   min-height: 100vh;
-  background: var(--s-canvas);
-  color: var(--s-text);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 48px 16px;
+  background: var(--login-paper);
+  color: var(--login-ink);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  align-items: center;
+  padding: 40px clamp(16px, 4vw, 96px) 40px 16px;
+  overflow: hidden;
+}
+.rt-login-art {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(251, 243, 230, 0) 58%, rgba(251, 243, 230, 0.85) 78%),
+    url('/login-bg.jpg') left bottom / 100% auto no-repeat;
+}
+/* wider than the artwork (16:9): fill the height, crop a little top and bottom, keep the brand line */
+@media (min-aspect-ratio: 1672/941) {
+  .rt-login-art {
+    background:
+      linear-gradient(90deg, rgba(251, 243, 230, 0) 58%, rgba(251, 243, 230, 0.85) 78%),
+      url('/login-bg.jpg') left 30% / cover no-repeat;
+  }
 }
 .rt-login-card {
+  position: relative;
+  grid-column: 2;
   width: 100%;
-  max-width: 640px;
-  background: var(--s-panel);
-  border: 1px solid var(--s-border);
-  border-radius: var(--c-radius-panel);
-  padding: 24px;
+  background: var(--login-card);
+  border: 1px solid var(--login-line);
+  border-radius: 20px;
+  box-shadow: 0 30px 60px -20px rgba(90, 50, 20, 0.28), 0 2px 6px rgba(90, 50, 20, 0.08);
+  padding: 40px 36px 32px;
   display: grid;
-  gap: var(--sp-3);
+  gap: 12px;
 }
-.rt-login-brand {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--c-radius-control);
-  background: var(--s-accent);
-  color: var(--s-on-accent);
-  display: grid;
-  place-items: center;
-  font-weight: var(--fw-semibold);
+.rt-login-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--login-maroon);
 }
 .rt-login-title {
   margin: 0;
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-semibold);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Times New Roman', serif;
+  font-size: 38px;
+  line-height: 1.1;
+  font-weight: 700;
+  color: var(--login-ink);
+}
+.rt-login-rule {
+  display: block;
+  width: 56px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--login-brass);
+}
+.rt-login-sub {
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: var(--login-muted);
+}
+.rt-login-form {
+  display: grid;
+  gap: 8px;
+}
+.rt-login-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+.rt-login-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.rt-login-field svg {
+  position: absolute;
+  color: var(--login-muted);
+  pointer-events: none;
+}
+.rt-login-field svg:first-child {
+  left: 14px;
+}
+.rt-login-field svg:last-child {
+  right: 14px;
+}
+.rt-login-select {
+  width: 100%;
+  min-width: 0;
+  height: 52px;
+  padding: 0 40px 0 42px;
+  border: 1px solid var(--login-line);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--login-ink);
+  font: inherit;
+  font-size: 15px;
+  appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rt-login-select:hover {
+  border-color: var(--login-brass);
+}
+.rt-login-select:focus-visible {
+  outline: none;
+  border-color: var(--login-maroon);
+  box-shadow: 0 0 0 3px rgba(163, 22, 43, 0.18);
+}
+.rt-login-submit {
+  margin-top: 16px;
+  height: 52px;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(180deg, var(--login-maroon), var(--login-maroon-dark));
+  color: #fff8ec;
+  font: inherit;
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  box-shadow: 0 8px 18px -8px rgba(126, 15, 32, 0.6);
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+}
+.rt-login-submit:hover:not(:disabled) {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px -10px rgba(126, 15, 32, 0.7);
+}
+.rt-login-submit:focus-visible {
+  outline: 2px solid var(--login-maroon);
+  outline-offset: 2px;
+}
+.rt-login-submit:disabled {
+  background: #d9c3b0;
+  color: #fffaf2;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 .rt-login-note {
-  margin: 0;
+  margin: 10px 0 0;
+  padding-top: 14px;
+  border-top: 1px dashed var(--login-line);
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  padding: 10px 12px;
-  border-radius: var(--c-radius-control);
-  background: var(--s-sunken);
-  font-size: var(--fs-secondary);
-  color: var(--s-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--login-muted);
+}
+.rt-login-note strong {
+  color: var(--login-ink);
 }
 .rt-login-note svg {
   flex: none;
   margin-top: 2px;
 }
-.rt-login-search {
-  position: relative;
-  display: flex;
-  align-items: center;
+@media (prefers-reduced-motion: reduce) {
+  .rt-login-submit,
+  .rt-login-select {
+    transition: none;
+  }
+  .rt-login-submit:hover:not(:disabled) {
+    transform: none;
+  }
 }
-.rt-login-search svg {
-  position: absolute;
-  left: 10px;
-  color: var(--s-text-muted);
-  pointer-events: none;
-}
-.rt-login-search .input {
-  width: 100%;
-  padding-left: 30px;
-}
-.rt-login-groups {
-  display: grid;
-  gap: var(--sp-3);
-}
-.rt-login-role {
-  margin: 0 0 4px;
-  font-size: var(--fs-supportive);
-  font-weight: var(--fw-medium);
-  color: var(--s-text-muted);
-}
-.rt-login-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 6px;
-}
-.rt-login-user {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  min-height: 44px;
-  border: 1px solid var(--s-border);
-  border-radius: var(--c-radius-control);
-  background: var(--s-panel);
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-.rt-login-user:hover {
-  background: var(--s-hover);
-  border-color: var(--s-border-strong);
-}
-.rt-login-user:focus-visible {
-  outline: 2px solid var(--s-focus);
-  outline-offset: 1px;
-}
-.rt-login-user-text {
-  display: grid;
-  flex: 1;
-  min-width: 0;
-}
-.rt-login-user-name {
-  font-weight: var(--fw-medium);
-}
-@media (max-width: 640px) {
+/* tablet / phone: the artwork becomes a banner (left crop keeps the brand line), card below */
+@media (max-width: 900px) {
   .rt-login {
-    padding: 16px 8px;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    padding: 0 16px 32px;
+  }
+  .rt-login-art {
+    position: relative;
+    inset: auto;
+    height: clamp(240px, 48vw, 420px);
+    margin: 0 -16px;
+    background:
+      linear-gradient(180deg, rgba(251, 243, 230, 0) 70%, var(--login-paper) 100%),
+      url('/login-bg.jpg') left top / cover no-repeat;
   }
   .rt-login-card {
-    padding: 16px;
+    grid-column: 1;
+    max-width: 480px;
+    justify-self: center;
+    margin-top: -24px;
+    padding: 32px 22px 24px;
+  }
+  .rt-login-title {
+    font-size: 32px;
   }
 }
 
@@ -1066,51 +1150,72 @@
   }
 }
 
-/* flow chain */
+/* flow chain — equal-width, equal-height steps; rows inside every step line up across the chain */
+.rt-fc-wrap {
+  container-type: inline-size;
+}
 .rt-fc {
   list-style: none;
   margin: 0;
-  padding: 4px 0;
-  display: flex;
-  gap: 22px;
-  overflow-x: auto;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr));
+  column-gap: 22px;
+  row-gap: 14px;
   align-items: stretch;
 }
 .rt-fc-node {
   position: relative;
-  flex: 1 0 128px;
-  min-width: 128px;
-  max-width: 220px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 .rt-fc-box {
-  display: grid;
-  gap: 3px;
-  padding: 8px 10px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
   border: 1px solid var(--s-border);
-  border-radius: 10px;
+  border-radius: var(--c-radius-control);
   background: var(--s-panel);
   color: inherit;
   text-decoration: none;
-  position: relative;
+  min-width: 0;
 }
 a.rt-fc-box:hover {
   border-color: var(--s-border-strong);
   background: var(--s-hover);
 }
+a.rt-fc-box:focus-visible {
+  outline: 2px solid var(--s-focus);
+  outline-offset: 2px;
+}
 .rt-fc-node.is-current .rt-fc-box {
   border-color: var(--s-accent);
-  box-shadow: 0 0 0 1px var(--s-accent) inset;
+  box-shadow: inset 0 0 0 1px var(--s-accent);
 }
 .rt-fc-node.is-done .rt-fc-box {
   background: var(--s-sunken);
 }
+.rt-fc-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+.rt-fc-label {
+  font-size: var(--fs-supportive);
+  color: var(--s-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
 .rt-fc-step {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+  flex: none;
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -1124,15 +1229,14 @@ a.rt-fc-box:hover {
   color: var(--s-success);
   border-color: var(--s-success);
 }
-.rt-fc-label {
-  font-size: var(--fs-supportive);
-  color: var(--s-text-secondary);
-  padding-right: 22px;
-}
 .rt-fc-value {
-  font-size: var(--fs-md);
+  font-size: var(--fs-secondary);
   font-weight: var(--fw-semibold);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
 }
 .rt-fc-bar {
   display: block;
@@ -1140,6 +1244,7 @@ a.rt-fc-box:hover {
   border-radius: 3px;
   background: var(--s-sunken);
   overflow: hidden;
+  flex: none;
 }
 .rt-fc-bar > span {
   display: block;
@@ -1150,34 +1255,28 @@ a.rt-fc-box:hover {
 .rt-fc-sub {
   font-size: var(--fs-xs);
   color: var(--s-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 1.3em;
 }
 .rt-fc-status {
-  justify-self: start;
-  font-size: var(--fs-xs);
-  padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid currentColor;
+  margin-top: auto; /* chips sit on the same baseline in every step */
+  min-height: 22px;
+  display: flex;
+  align-items: flex-end;
 }
-.rt-fc-status.tone-good {
-  color: var(--s-success);
-}
-.rt-fc-status.tone-info {
-  color: var(--s-info);
-}
-.rt-fc-status.tone-warn {
-  color: var(--s-warning);
-}
-.rt-fc-status.tone-bad {
-  color: var(--s-danger);
-}
-.rt-fc-status.tone-muted {
-  color: var(--s-text-muted);
+.rt-fc-status .chip {
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .rt-fc-arrow {
   position: absolute;
-  right: -19px;
-  top: 30px;
-  width: 16px;
+  right: -18px;
+  top: 22px;
+  width: 14px;
   height: 2px;
   background: var(--s-border-strong);
 }
@@ -1193,11 +1292,28 @@ a.rt-fc-box:hover {
 .rt-fc-exits {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 6px;
+  padding: 0 2px;
   display: grid;
   gap: 2px;
   font-size: var(--fs-xs);
   color: var(--s-text-secondary);
+}
+.rt-fc-exits li {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+.rt-fc-exit-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rt-fc-exits strong {
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .rt-fc-exits li.is-warn {
   color: var(--s-warning);
@@ -1205,18 +1321,39 @@ a.rt-fc-box:hover {
 .rt-fc-note {
   margin: 0;
 }
-@media (max-width: 640px) {
-  .rt-fc {
-    flex-direction: column;
-    gap: 18px;
+/* long chains (route) in a narrower card: 4 per row, order shown by the step numbers */
+@container (max-width: 860px) {
+  .rt-fc.is-long {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .rt-fc-node {
-    max-width: none;
-    flex: none;
+  .rt-fc.is-long .rt-fc-node:nth-child(4n) .rt-fc-arrow {
+    display: none;
   }
-  .rt-fc-arrow {
+}
+@container (max-width: 700px) {
+  .rt-fc,
+  .rt-fc.is-long {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .rt-fc-node:nth-child(2n) .rt-fc-arrow {
+    display: none;
+  }
+  .rt-fc-node:nth-child(4n) .rt-fc-arrow {
+    display: none;
+  }
+}
+@container (max-width: 260px) {
+  .rt-fc,
+  .rt-fc.is-long {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 18px;
+  }
+  .rt-fc-node .rt-fc-arrow,
+  .rt-fc-node:nth-child(2n) .rt-fc-arrow,
+  .rt-fc-node:nth-child(4n) .rt-fc-arrow {
+    display: block;
     right: auto;
-    left: 24px;
+    left: 22px;
     top: auto;
     bottom: -15px;
     width: 2px;
@@ -1414,4 +1551,133 @@ a.rt-fc-box:hover {
 
 .rt-tl-axis[hidden] {
   display: none;
+}
+
+/* ---------------------------------------------------------------- UX consistency round
+   Charts are cards like panels: same radius, border, header row, title scale and inner padding. */
+.rt-chart {
+  padding: 0 0 12px;
+  gap: 10px;
+  align-content: start;
+}
+.rt-chart > :not(.rt-chart-head) {
+  margin-inline: 14px;
+}
+.rt-chart-head {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--s-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+}
+.rt-chart-head strong {
+  font-size: var(--fs-secondary);
+  font-weight: var(--fw-semibold);
+  color: var(--s-text);
+}
+.rt-chart-head .small,
+.rt-panel-meta {
+  font-size: var(--fs-supportive);
+  color: var(--s-text-muted);
+}
+.rt-chart .rt-details {
+  margin-top: 2px;
+}
+.rt-chart .rt-details > summary {
+  padding: 6px 10px;
+  font-size: var(--fs-supportive);
+}
+/* panels and charts share one vertical rhythm */
+.rt-page {
+  gap: 12px;
+}
+.rt-panel-head {
+  padding: 10px 14px;
+  min-height: 44px;
+}
+.rt-charts {
+  gap: 12px;
+  align-items: stretch;
+}
+.rt-charts > .rt-chart,
+.rt-grid > .rt-panel,
+.rt-grid > .rt-chart {
+  height: 100%;
+}
+/* page header row: intro text and page actions on ONE line (saves a full row) */
+.rt-headrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+.page-header:has(.rt-headrow) {
+  justify-content: stretch;
+  margin-bottom: 0;
+}
+.page-header:has(.rt-headrow) .page-actions {
+  flex: 1;
+}
+.rt-headrow .rt-intro {
+  margin: 0;
+}
+/* decision rows: title, then one meta line; action vertically centred */
+.rt-decision-meta {
+  align-items: center;
+}
+.rt-decision-meta .chip {
+  margin: 0;
+}
+/* two primary panels side by side on wide screens */
+.rt-split2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+.rt-split2 > * {
+  min-width: 0;
+}
+@media (max-width: 1180px) {
+  .rt-split2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* long chains (8-stage route) stay on one row at desktop: tighter steps, no step circles (arrows give order) */
+.rt-fc.is-long {
+  column-gap: 16px;
+}
+.rt-fc.is-long .rt-fc-box {
+  padding: 8px 10px;
+}
+.rt-fc.is-long .rt-fc-step {
+  display: none;
+}
+.rt-fc.is-long .rt-fc-arrow {
+  right: -14px;
+  width: 10px;
+}
+/* record IDs and links never break across lines in tables */
+.rt-table td a,
+.rt-table th a,
+.rt-table .rt-lot,
+.rt-table .rt-ref {
+  white-space: nowrap;
+}
+
+/* phones: flows keep two compact steps per row (order from step numbers / reading order) */
+@container (max-width: 700px) {
+  .rt-fc .rt-fc-arrow {
+    display: none;
+  }
+  .rt-fc-box {
+    padding: 8px 10px;
+  }
+  .rt-fc .rt-fc-step {
+    display: grid;
+  }
 }

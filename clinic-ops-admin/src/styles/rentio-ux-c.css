@@ -1,0 +1,29 @@
+/* UX round (fork C): production & distribution page layouts. Tokens only. */
+@media (min-width: 1181px) {
+  .rt-split2.rt-wide-left {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+  .rt-split2.rt-wide-right {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
+}
+.rt-nowrap {
+  white-space: nowrap;
+}
+.rt-tabbar {
+  margin: 0;
+}
+.rt-showall {
+  margin-top: 8px;
+}
+
+/* a hidden tab panel stays in the DOM but never shows, even when its class sets display */
+.rt-page [hidden] {
+  display: none !important;
+}
+.rt-input-narrow {
+  max-width: 240px;
+}
+.rt-input-date {
+  max-width: 180px;
+}

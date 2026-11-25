@@ -1,5 +1,7 @@
 /** Production funnel by stage: queue, running, held, output and pending — derived from the ledger. */
-import { InlineAlert } from '../../components/primitives/feedback';
+import '../../styles/rentio-ux-c.css';
+import { useState } from 'react';
+import { InlineAlert, Tabs } from '../../components/primitives/feedback';
 import { hasCap, userName } from '../../domain/rentio/access';
 import { reviseEta, runTiming } from '../../domain/rentio/ops';
 import { readScope, scopedRuns } from '../../domain/rentio/scope';
@@ -10,7 +12,7 @@ import { wsBase } from '../../lib/routes';
 import { CAT, ChartGrid, FlowChain, MASS_SEGS, massRows, RunTimeline, StackBars, STATUS } from '../graphics';
 import { routeFlow } from '../flows';
 import { stageName } from '../../domain/rentio/views';
-import { Details, Eta, FormButton, fromLocalInput, ImplNote, Kpi, KpiRow, LotLink, PageLink, Panel, Qty, RPage, Status, str, Table, toLocalInput, Who, fmtTime, useFocusId } from '../ui';
+import { Details, Eta, FormButton, fromLocalInput, ImplNote, LotLink, PageLink, Panel, Qty, RPage, Status, str, Table, toLocalInput, Who, fmtTime, useFocusId } from '../ui';
 
 export default function StageBoard() {
   const { s, now, actor, db } = useR();
@@ -24,17 +26,33 @@ export default function StageBoard() {
   const allRuns = funnel.flatMap((f) => f.runs).filter((r) => visible.has(r.run.id));
   const canEta = (stage: string) => hasCap(actor, 'plan.manage') || (hasCap(actor, 'stage.operate') && (actor.scope.stages ?? []).includes(stage));
   const done = s.runs.filter((r) => r.status === 'completed' && visible.has(r.id)).slice().reverse().slice(0, 20);
+  const [tabSel, setTab] = useState<'now' | 'done' | ''>('');
+  const tab = tabSel || (focus && done.some((r) => r.id === focus) ? 'done' : 'now');
+  const late = allRuns.filter((r) => r.t.status !== 'On Track').length;
   return (
-    <RPage title="Stage board" description="Material at each stage, who owns it and when it should finish.">
+    <RPage
+      title="Stage board"
+      description="Material at each stage, who owns it and when it should finish."
+      actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">
+            {allRuns.length} run(s) in progress · {late ? <span className="tone-text-danger">{late} late or paused</span> : 'all on plan'} · {fmtKg(total('pendingIn') + total('queue') + total('running') + total('held') + total('output'))} at the stages
+          </p>
+        </div>
+      }
+    >
       {focus && !allRuns.some((r) => r.run.id === focus) && !done.some((r) => r.id === focus) && <InlineAlert tone="info">That run is finished or not in your area of work.</InlineAlert>}
-      <KpiRow>
-        <Kpi label="Waiting to be received" value={fmtKg(total('pendingIn'))} />
-        <Kpi label="Queued at stages" value={fmtKg(total('queue'))} />
-        <Kpi label="Being processed" value={fmtKg(total('running'))} tone="info" />
-        <Kpi label="Paused (on hold)" value={fmtKg(total('held'))} tone={total('held') ? 'warning' : undefined} />
-        <Kpi label="Ready to issue" value={fmtKg(total('output'))} />
-        <Kpi label="Late or paused runs" value={allRuns.filter((r) => r.t.status !== 'On Track').length} tone={allRuns.some((r) => r.t.status === 'Delayed') ? 'danger' : undefined} />
-      </KpiRow>
+      <Tabs
+        label="Stage board sections"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: 'now', label: 'Now', count: allRuns.length },
+          { id: 'done', label: 'Finished runs', count: done.length },
+        ]}
+      />
+      {tab === 'now' && (
+        <>
       <FlowChain title="Process route — material at each stage" caption="kg arriving + queued + running + ready · outlined = late or paused · open a stage to act" nodes={routeFlow(s, actor, now, base)} />
       <ChartGrid>
         <StackBars
@@ -51,55 +69,16 @@ export default function StageBoard() {
           rows={funnel.map((f) => ({ id: f.code, label: stageName(f.code), text: stageName(f.code), to: `${base}/production/stage?stage=${f.code}`, values: { pendingIn: f.pendingIn, queue: f.queue, running: f.running, held: f.held, output: f.output } }))}
           empty="No material at any stage."
         />
-        <RunTimeline title="Runs — planned vs actual" caption="Open runs and the latest finished ones" runs={[...allRuns.map((r) => r.run), ...done.slice(0, Math.max(0, 6 - allRuns.length))]} now={now} labelOf={(r) => `${stageName(r.stage)} · ${r.inputLotId}`} />
+        <RunTimeline title="Runs in progress — planned vs actual" caption="Working time, holds and time past the planned finish" runs={allRuns.map((r) => r.run)} now={now} labelOf={(r) => `${stageName(r.stage)} · ${r.inputLotId}`} />
       </ChartGrid>
-      <StackBars
-        title="Where each finished run's input went"
-        caption="kg per run, latest first · good output, rework, husk, churi, rejects, loss, not processed"
-        rowHeader="Run"
-        segs={MASS_SEGS}
-        rows={massRows(done.slice(0, 10), (r) => `${stageName(r.stage)} · ${r.inputLotId}`, (r) => `${base}/production/stage?stage=${r.stage}`)}
-        focus={focus}
-        empty="No finished runs yet."
-      />
-      <Panel title="Stages" meta={`Process route: ${s.route.stages.join(' → ')} → finished godown`}>
-        <Table
-          rows={funnel}
-          rowKey={(f) => f.code}
-          cols={[
-            { key: 'st', label: 'Stage', render: (f) => <PageLink to={`production/stage?stage=${f.code}`}>{f.label}</PageLink> },
-            { key: 'own', label: 'Owner', render: (f) => f.ownerName },
-            { key: 'q', label: 'Queued', num: true, render: (f) => (f.queue + f.pendingIn ? fmtKg(f.queue + f.pendingIn) : '—') },
-            { key: 'r', label: 'Processing', num: true, render: (f) => (f.running + f.held ? fmtKg(f.running + f.held) : '—') },
-            { key: 'o', label: 'Ready to issue', num: true, render: (f) => (f.output ? fmtKg(f.output) : '—') },
-            {
-              key: 'bar',
-              label: 'Load',
-              render: (f) => {
-                const sum = f.queue + f.running + f.held + f.output || 1;
-                return (
-                  <div className="rt-bar" style={{ width: 120 }} aria-hidden="true">
-                    <span className="b-queue" style={{ width: `${(f.queue / sum) * 100}%` }} />
-                    <span className="b-run" style={{ width: `${(f.running / sum) * 100}%` }} />
-                    <span className="b-hold" style={{ width: `${(f.held / sum) * 100}%` }} />
-                    <span className="b-out" style={{ width: `${(f.output / sum) * 100}%` }} />
-                  </div>
-                );
-              },
-            },
-            { key: 'eta', label: 'Next finish', render: (f) => (f.etaUnknown ? <Status s="Delayed" /> : f.nextEta ? fmtTime(f.nextEta) : '—') },
-          ]}
-        />
-      </Panel>
-      <Panel title="Runs in progress" meta="The planned finish never changes; a revised finish needs a named person and a reason">
+      <Panel title="Runs in progress" meta="planned finish never changes · a revised finish needs a name and a reason">
         <Table
           rows={allRuns}
           rowKey={(r) => r.run.id}
           focus={focus}
           empty="No runs in progress."
           cols={[
-            { key: 'st', label: 'Stage', render: (r) => `${r.run.stage}${r.run.pass > 1 ? ` pass ${r.run.pass}` : ''}` },
-            { key: 'lot', label: 'Lot', render: (r) => <LotLink id={r.run.inputLotId} /> },
+            { key: 'st', label: 'Stage · lot', render: (r) => <span className="rt-nowrap">{stageName(r.run.stage)}{r.run.pass > 1 ? ` ${r.run.pass}` : ''} · <LotLink id={r.run.inputLotId} /></span> },
             { key: 'q', label: 'Qty', num: true, render: (r) => <Qty g={r.run.inputQty} /> },
             { key: 's', label: 'Status', render: (r) => <Status s={r.t.status} /> },
             { key: 'b', label: 'Planned finish', render: (r) => fmtTime(r.t.baselineFinish) },
@@ -145,7 +124,49 @@ export default function StageBoard() {
           </Details>
         )}
       </Panel>
-      <Details summary={`Completed runs (${done.length})`}>
+      <Details summary="Stage table — owners and quantities">
+        <Table
+          rows={funnel}
+          rowKey={(f) => f.code}
+          cols={[
+            { key: 'st', label: 'Stage', render: (f) => <PageLink to={`production/stage?stage=${f.code}`}>{f.label}</PageLink> },
+            { key: 'own', label: 'Owner', render: (f) => f.ownerName },
+            { key: 'q', label: 'Queued', num: true, render: (f) => (f.queue + f.pendingIn ? fmtKg(f.queue + f.pendingIn) : '—') },
+            { key: 'r', label: 'Processing', num: true, render: (f) => (f.running + f.held ? fmtKg(f.running + f.held) : '—') },
+            { key: 'o', label: 'Ready to issue', num: true, render: (f) => (f.output ? fmtKg(f.output) : '—') },
+            {
+              key: 'bar',
+              label: 'Load',
+              render: (f) => {
+                const sum = f.queue + f.running + f.held + f.output || 1;
+                return (
+                  <div className="rt-bar" style={{ width: 120 }} aria-hidden="true">
+                    <span className="b-queue" style={{ width: `${(f.queue / sum) * 100}%` }} />
+                    <span className="b-run" style={{ width: `${(f.running / sum) * 100}%` }} />
+                    <span className="b-hold" style={{ width: `${(f.held / sum) * 100}%` }} />
+                    <span className="b-out" style={{ width: `${(f.output / sum) * 100}%` }} />
+                  </div>
+                );
+              },
+            },
+            { key: 'eta', label: 'Next finish', render: (f) => (f.etaUnknown ? <Status s="Delayed" /> : f.nextEta ? fmtTime(f.nextEta) : '—') },
+          ]}
+        />
+      </Details>
+        </>
+      )}
+      {tab === 'done' && (
+        <>
+      <StackBars
+        title="Where each finished run's input went"
+        caption="kg per run, latest first · good output, rework, husk, churi, rejects, loss, not processed"
+        rowHeader="Run"
+        segs={MASS_SEGS}
+        rows={massRows(done.slice(0, 10), (r) => `${stageName(r.stage)} · ${r.inputLotId}`, (r) => `${base}/production/stage?stage=${r.stage}`)}
+        focus={focus}
+        empty="No finished runs yet."
+      />
+      <Panel title="Finished runs" meta={`latest ${done.length}`}>
         <Table
           rows={done}
           rowKey={(r) => r.id}
@@ -159,7 +180,9 @@ export default function StageBoard() {
             { key: 'holds', label: 'Pauses', render: (r) => r.events.filter((e) => e.type === 'hold').map((e) => e.reason).join('; ') || '—' },
           ]}
         />
-      </Details>
+      </Panel>
+        </>
+      )}
       <ImplNote>
         Production and stage tracking (M4): FR-072 funnel, FR-073 baseline vs revised forecast — an overdue run shows "ETA needs update" instead of a computed time; revisions record person, reason and time (reviseEta) and never change the baseline. Elapsed = finish − start; active excludes holds. Runs filtered by scopedRuns.
       </ImplNote>

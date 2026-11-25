@@ -5,7 +5,8 @@ import { fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
 import { GradingGraphics } from './_graphA';
 import { canReadLot, scopedRuns, scopedStockRows } from '../../domain/rentio/scope';
-import { ImplNote, FormButton, Kpi, KpiRow, LotLink, PageLink, Panel, Qty, Ref, RPage, Status, str, Table, useCan, fmtTime, useFocusId } from '../ui';
+import '../../styles/rentio-ux-c.css';
+import { Details, ImplNote, FormButton, LotLink, PageLink, Panel, Qty, Ref, RPage, Status, str, Table, useCan, fmtTime, useFocusId } from '../ui';
 
 export default function Grading() {
   const { s, actor, now } = useR();
@@ -21,36 +22,62 @@ export default function Grading() {
   graded.filter((l) => /^[AB]\d$/.test(l.grade!)).forEach((l) => byGrade.set(l.grade!, (byGrade.get(l.grade!) ?? 0) + live(l.id)));
   const regrades = s.approvals.filter((a) => a.type === 'regrade' && canReadLot(s, actor, String(a.payload.lotId)));
   return (
-    <RPage title="Grading & re-grade" description="Grade outputs as linked child lots; the input is used up, never counted twice.">
-      <KpiRow>
-        {[...byGrade.entries()].map(([g, q]) => (
-          <Kpi key={g} label={`Grade ${g} in your area`} value={fmtKg(q)} />
-        ))}
-        <Kpi label="Re-grade requests pending" value={regrades.filter((a) => a.status === 'pending').length} to={undefined} />
-      </KpiRow>
+    <RPage
+      title="Grading & re-grade"
+      description="Grade outputs as linked child lots; the input is used up, never counted twice."
+      actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">
+            {fmtKg(sum([...byGrade.values()]))} graded stock in your area · {regrades.filter((a) => a.status === 'pending').length} re-grade request(s) pending
+          </p>
+          <PageLink to="production/stage?stage=G2">Record a grading run (My stage · G2)</PageLink>
+        </div>
+      }
+    >
       <GradingGraphics runs={runs} byGrade={byGrade} />
-      <Panel title="Grading runs" meta="Every kilogram is classified — an unexplained difference cannot be posted">
+      <div className="rt-split2 rt-wide-left">
+      <Panel title="Grading runs" meta="every kilogram classified — no unexplained difference">
         <Table
           rows={runs}
           focus={focus}
           rowKey={(r) => r.id}
           empty="No grading runs yet — use My stage for G1/G2."
           cols={[
-            { key: 'id', label: 'Run', render: (r) => <Ref>{r.id}</Ref> },
-            { key: 'st', label: 'Stage', render: (r) => r.stage },
+            { key: 'id', label: 'Run · stage', render: (r) => <span className="rt-nowrap"><Ref>{r.id}</Ref> · {r.stage}</span> },
             { key: 'in', label: 'Input lot', render: (r) => <LotLink id={r.inputLotId} /> },
             { key: 'q', label: 'Input', num: true, render: (r) => <Qty g={r.inputQty} /> },
-            { key: 'out', label: 'Child lots', render: (r) => (r.outputs.length ? r.outputs.filter((o) => o.lotId).map((o) => <span key={o.lotId} className="rt-row" style={{ display: 'inline-flex', marginRight: 8 }}><LotLink id={o.lotId!} /> {fmtKg(o.qty)}</span>) : <Status s={r.status} />) },
             { key: 'loss', label: 'Loss', num: true, render: (r) => fmtKg(sum(r.outputs.filter((o) => o.kind === 'loss').map((o) => o.qty))) },
             { key: 'bal', label: 'Balance', render: (r) => (r.status === 'completed' ? (sum(r.outputs.map((o) => o.qty)) === r.inputQty + sum(r.additions.map((a) => a.qty)) ? 'balanced ✓' : 'check') : '—') },
             { key: 'at', label: 'Completed', render: (r) => fmtTime(r.completedAt) },
           ]}
         />
-        <p className="muted">
-          Grade outputs: open <PageLink to="production/stage?stage=G2">My stage · G2</PageLink> to record a run.
-        </p>
+        <Details summary="Child lots made by each run">
+          <Table
+            rows={runs.filter((r) => r.outputs.some((o) => o.lotId))}
+            rowKey={(r) => r.id}
+            cols={[
+              { key: 'id', label: 'Run', render: (r) => r.id },
+              { key: 'out', label: 'Child lots', render: (r) => <span className="rt-row">{r.outputs.filter((o) => o.lotId).map((o) => <span key={o.lotId}><LotLink id={o.lotId!} /> {fmtKg(o.qty)}</span>)}</span> },
+            ]}
+          />
+        </Details>
       </Panel>
-      <Panel title="Graded stock" meta="What is in stock now, by grade">
+      <Panel title="Re-grade requests">
+        <Table
+          rows={regrades.slice().reverse()}
+          rowKey={(a) => a.id}
+          empty="No re-grade requests."
+          cols={[
+            { key: 'id', label: 'Request', render: (a) => <Ref>{a.id}</Ref> },
+            { key: 'sum', label: 'Change', render: (a) => a.summary },
+            { key: 'by', label: 'Requested by', render: (a) => userName(a.requestedBy) },
+            { key: 'st', label: 'Status', render: (a) => <Status s={a.status} /> },
+            { key: 'dec', label: 'Decided by', render: (a) => (a.decidedBy ? `${userName(a.decidedBy)} · ${fmtTime(a.decidedAt)}` : <PageLink to="home/approvals">Open approvals</PageLink>) },
+          ]}
+        />
+      </Panel>
+      </div>
+      <Panel title="Graded stock" meta="what is in stock now · request a re-grade here">
         <Table
           rows={graded}
           rowKey={(l) => l.id}
@@ -79,21 +106,6 @@ export default function Grading() {
                 />
               ),
             },
-          ]}
-        />
-      </Panel>
-      <Panel title="Re-grade requests">
-        <Table
-          rows={regrades.slice().reverse()}
-          rowKey={(a) => a.id}
-          empty="No re-grade requests."
-          cols={[
-            { key: 'id', label: 'Request', render: (a) => <Ref>{a.id}</Ref> },
-            { key: 'sum', label: 'Change', render: (a) => a.summary },
-            { key: 'why', label: 'Reason', render: (a) => String(a.payload.reason ?? '') },
-            { key: 'by', label: 'Requested by', render: (a) => userName(a.requestedBy) },
-            { key: 'st', label: 'Status', render: (a) => <Status s={a.status} /> },
-            { key: 'dec', label: 'Decided by', render: (a) => (a.decidedBy ? `${userName(a.decidedBy)} · ${fmtTime(a.decidedAt)}` : <PageLink to="home/approvals">Open approvals</PageLink>) },
           ]}
         />
       </Panel>

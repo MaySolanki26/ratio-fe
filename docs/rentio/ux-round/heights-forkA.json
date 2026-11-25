@@ -1,0 +1,84 @@
+{
+ "at": "2026-11-25T05:09:03.931Z",
+ "viewport": "1440x900",
+ "out": [
+  {
+   "page": "home/inbox",
+   "user": "u_owner",
+   "height": 1166,
+   "screens": 1.4,
+   "horizontalScroll": false
+  },
+  {
+   "page": "home/approvals",
+   "user": "u_owner",
+   "height": 820,
+   "screens": 1,
+   "horizontalScroll": false
+  },
+  {
+   "page": "home/alerts",
+   "user": "u_owner",
+   "height": 1297,
+   "screens": 1.5,
+   "horizontalScroll": false
+  },
+  {
+   "page": "home/incidents",
+   "user": "u_owner",
+   "height": 820,
+   "screens": 1,
+   "horizontalScroll": false
+  },
+  {
+   "page": "home/decisions",
+   "user": "u_owner",
+   "height": 820,
+   "screens": 1,
+   "horizontalScroll": false
+  },
+  {
+   "page": "finance/tally",
+   "user": "u_neha",
+   "height": 1179,
+   "screens": 1.4,
+   "horizontalScroll": false
+  },
+  {
+   "page": "finance/reports",
+   "user": "u_owner",
+   "height": 1459,
+   "screens": 1.7,
+   "horizontalScroll": false
+  },
+  {
+   "page": "finance/close",
+   "user": "u_neha",
+   "height": 949,
+   "screens": 1.1,
+   "horizontalScroll": false
+  },
+  {
+   "page": "hr/attendance",
+   "user": "u_pooja",
+   "height": 1084,
+   "screens": 1.3,
+   "horizontalScroll": false
+  },
+  {
+   "page": "planning/season",
+   "user": "u_fhead",
+   "height": 1130,
+   "screens": 1.3,
+   "horizontalScroll": false
+  },
+  {
+   "page": "presenter/journey",
+   "user": "u_owner",
+   "height": 974,
+   "screens": 1.1,
+   "horizontalScroll": false
+  }
+ ],
+ "errors": []
+}

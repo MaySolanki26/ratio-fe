@@ -6,7 +6,7 @@ import * as C from '../../domain/rentio/commerce';
 import { purchaseBalances } from '../../domain/rentio/ops';
 import { fmtINR, fmtKg } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
-import { Details, FormButton, Grid, ImplNote, Kpi, KpiRow, num, Panel, Reason, Ref, RPage, Sim, Status, Table, fmtTime, useCan, useFocusId } from '../ui';
+import { Details, FormButton, Grid, ImplNote, num, Panel, Reason, Ref, RPage, Sim, Status, Table, fmtTime, useCan, useFocusId } from '../ui';
 import { TallyCharts } from './_graphB';
 import { wsBase } from '../../lib/routes';
 
@@ -18,7 +18,6 @@ export default function Tally() {
   const [sel, setSel] = useState<string | null>(() => (focus && s.tally.some((t) => t.id === focus) ? focus : null));
   const syncNo = can('tally.sync', 'synchronize with Tally');
   const doc = s.tally.find((t) => t.id === sel);
-  const count = (st: string) => s.tally.filter((t) => t.status === st).length;
   const credits = s.complaints.filter((c) => c.creditStatus === 'requested');
   const bills = s.purchases.map((p) => ({ p, b: purchaseBalances(s, p) }));
   const party = (id: string) => String(db.records.distributors?.find((d) => d.id === id)?.name ?? db.records.retailers?.find((r) => r.id === id)?.name ?? id);
@@ -34,18 +33,11 @@ export default function Tally() {
       }
     >
       {focus && !s.tally.some((t) => t.id === focus) && !s.collections.some((c) => c.id === focus) && <InlineAlert tone="info">That document is not in the queue any more.</InlineAlert>}
-      <KpiRow>
-        <Kpi label="Queued" value={count('queued')} />
-        <Kpi label="Acknowledged" value={count('acknowledged') + count('reconciled')} tone="success" />
-        <Kpi label="Failed" value={count('failed')} tone={count('failed') ? 'danger' : undefined} />
-        <Kpi label="Status unknown" value={count('status_unknown')} tone={count('status_unknown') ? 'warning' : undefined} />
-        <Kpi label="Simulator: next fail / timeout" value={`${s.tallySim.failNext} / ${s.tallySim.timeoutNext}`} note="Simulated faults" />
-      </KpiRow>
       <TallyCharts s={s} base={wsBase(db.session.workspaceId)} />
 
       <Panel
         title="Document queue"
-        meta={`${s.tally.length} source documents`}
+        meta={`${s.tally.length} source documents · simulator: next ${s.tallySim.failNext} fail / ${s.tallySim.timeoutNext} time out`}
         actions={
           <FormButton
             label="Simulator settings"

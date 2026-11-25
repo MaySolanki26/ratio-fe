@@ -8,9 +8,12 @@ import { runTiming } from '../domain/rentio/ops';
 import { canReadLot, readScope, scopedPositions, scopedStockRows } from '../domain/rentio/scope';
 import type { RentioState, StageCode } from '../domain/rentio/types';
 import { fmtKg, type Grams, sum } from '../domain/rentio/units';
-import { lotAccounting, stageFunnel, stageName } from '../domain/rentio/views';
+import { lotAccounting, stageFunnel } from '../domain/rentio/views';
 import type { FlowNode, Seg, TreeNode } from './graphics';
 import { CAT, STATUS } from './graphics';
+
+/** Short stage names for flow steps (full names stay in tables and tooltips). */
+export const STAGE_SHORT: Record<StageCode, string> = { CLEAN: 'Cleaning', G1: 'G1 grading', OIL: 'Oiling', COND: 'Conditioning', DRY: 'Drying', PEEL: 'Peeling', G2: 'G2 grading', PACK: 'Packing' };
 
 /** Production route as a flow: each stage's material (arriving + queued + in process + ready), status and exits. */
 export function routeFlow(s: RentioState, actor: RActor, now: string, base: string, opts: { exitsFromRoot?: string } = {}): FlowNode[] {
@@ -34,25 +37,28 @@ export function routeFlow(s: RentioState, actor: RActor, now: string, base: stri
     const total = f.pendingIn + f.queue + f.running + f.held + f.output;
     const late = f.runs.find((r) => r.t.status === 'Delayed');
     const status: FlowNode['status'] = f.held
-      ? { label: `${fmtKg(f.held)} on hold`, tone: 'warn' }
+      ? { label: 'Paused', tone: 'warn' }
       : late
-        ? { label: late.t.etaSource === 'needs_update' ? 'Late · ETA needs update' : 'Late', tone: 'bad' }
+        ? { label: 'Late', tone: 'bad' }
         : f.running
           ? { label: 'Running', tone: 'info' }
           : f.pendingIn
-            ? { label: 'Waiting for receipt', tone: 'muted' }
+            ? { label: 'Arriving', tone: 'info' }
             : f.output
-              ? { label: 'Ready to send', tone: 'good' }
+              ? { label: 'Ready to issue', tone: 'good' }
               : f.queue
-                ? { label: 'Waiting to start', tone: 'muted' }
+                ? { label: 'Queued', tone: 'muted' }
                 : { label: 'Idle', tone: 'muted' };
-    const parts = [f.pendingIn && `${fmtKg(f.pendingIn)} arriving`, f.queue && `${fmtKg(f.queue)} queued`, f.running && `${fmtKg(f.running)} running`, f.output && `${fmtKg(f.output)} ready`].filter(Boolean);
+    const n = (g: number) => (g / 1000).toLocaleString('en-IN');
+    const parts = [f.pendingIn && `${n(f.pendingIn)} arriving`, f.queue && `${n(f.queue)} queued`, f.running && `${n(f.running)} running`, f.output && `${n(f.output)} ready`].filter(Boolean);
+    const first = f.ownerName.split(' ')[0];
     return {
       key: f.code,
-      label: stageName(f.code),
+      label: STAGE_SHORT[f.code],
       value: fmtKg(total),
       magnitude: total,
-      sub: parts.length ? parts.join(' · ') : `owner ${f.ownerName}`,
+      // one short line: the biggest part of the material, else who owns the stage (full detail on hover)
+      sub: parts.length ? `${parts[parts.length > 1 ? 1 : 0]}${parts.length > 1 ? ` +${parts.length - 1}` : ''}` : first,
       status,
       current: !!late || !!f.held,
       to: `${base}/production/stage?stage=${f.code}`,
@@ -76,13 +82,13 @@ export function stockFlow(s: RentioState, actor: RActor, now: string, base: stri
   const finHeld = kg(fin.filter((r) => r.held || r.expired));
   const gate = kg(of(['intake']));
   const nodes: FlowNode[] = [
-    { key: 'raw', label: 'Raw toor', value: fmtKg(kg(raw)), magnitude: kg(raw), sub: gate ? `${fmtKg(gate)} at gate for check` : `${fmtKg(sum(raw.map((r) => r.readyToProcess)))} ready to process`, status: gate ? { label: 'Check pending', tone: 'warn' } : { label: 'Ready', tone: 'good' }, to: `${base}/stock/godowns` },
-    { key: 'proc', label: 'In processing', value: fmtKg(kg(proc)), magnitude: kg(proc), sub: `${new Set(proc.map((r) => r.location.stage).filter(Boolean)).size} stage(s) with material`, status: proc.some((r) => r.location.kind === 'pending') ? { label: 'Handover open', tone: 'info' } : undefined, to: `${base}/production/stages` },
-    { key: 'fin', label: 'Finished (factory)', value: `${bags.toLocaleString('en-IN')} bags`, magnitude: kg(fin), sub: `${fmtKg(kg(fin))} · ${fmtKg(sum(fin.map((r) => r.available)))} free to sell`, status: finHeld ? { label: `${fmtKg(finHeld)} on hold`, tone: 'warn' } : { label: 'All sellable', tone: 'good' }, to: `${base}/stock/godowns` },
+    { key: 'raw', label: 'Raw toor', value: fmtKg(kg(raw)), magnitude: kg(raw), sub: gate ? `${fmtKg(gate)} at the gate` : `${fmtKg(sum(raw.map((r) => r.readyToProcess)))} ready`, status: gate ? { label: 'Check pending', tone: 'warn' } : { label: 'Ready', tone: 'good' }, to: `${base}/stock/godowns` },
+    { key: 'proc', label: 'In processing', value: fmtKg(kg(proc)), magnitude: kg(proc), sub: `${new Set(proc.map((r) => r.location.stage).filter(Boolean)).size} stage(s) busy`, status: proc.some((r) => r.location.kind === 'pending') ? { label: 'Handover open', tone: 'info' } : undefined, to: `${base}/production/stages` },
+    { key: 'fin', label: 'Finished (factory)', value: `${bags.toLocaleString('en-IN')} bags`, magnitude: kg(fin), sub: `${fmtKg(kg(fin))} · ${fmtKg(sum(fin.map((r) => r.available)))} free`, status: finHeld ? { label: `${fmtKg(finHeld)} on hold`, tone: 'warn' } : { label: 'All sellable', tone: 'good' }, to: `${base}/stock/godowns` },
     { key: 'transit', label: 'On the road', value: fmtKg(kg(tr)), magnitude: kg(tr), sub: `${new Set(tr.map((r) => r.loc)).size} shipment(s)`, to: `${base}/distribution/orders` },
   ];
   if (sc.all || sc.allDistributors || sc.distributors.length)
-    nodes.push({ key: 'dist', label: sc.all || sc.allDistributors ? 'At distributors' : 'At your distributor', value: fmtKg(kg(dist)), magnitude: kg(dist), sub: `${new Set(dist.map((r) => r.location.distributorId)).size} partner(s) with stock`, status: dist.some((r) => r.held) ? { label: `${fmtKg(kg(dist.filter((r) => r.held)))} held`, tone: 'warn' } : undefined, to: `${base}/distribution/distributors` });
+    nodes.push({ key: 'dist', label: sc.all || sc.allDistributors ? 'At distributors' : 'At your distributor', value: fmtKg(kg(dist)), magnitude: kg(dist), sub: `${new Set(dist.map((r) => r.location.distributorId)).size} partners`, status: dist.some((r) => r.held) ? { label: `${fmtKg(kg(dist.filter((r) => r.held)))} held`, tone: 'warn' } : undefined, to: `${base}/distribution/distributors` });
   return nodes.filter((n) => sc.factory || n.key === 'dist' || n.key === 'transit');
 }
 
@@ -163,7 +169,7 @@ export function lotRouteFlow(s: RentioState, rootId: string, base: string): Flow
     const t = runTiming(r, new Date().toISOString());
     nodes.push({
       key: r.id,
-      label: `${stageName(r.stage)}${r.pass > 1 ? ` (pass ${r.pass})` : ''}`,
+      label: `${STAGE_SHORT[r.stage]}${r.pass > 1 ? ` · pass ${r.pass}` : ''}`,
       value: fmtKg(r.inputQty + add),
       magnitude: r.inputQty + add,
       sub: r.status === 'completed' ? (grades.length > 1 ? grades.join(' · ') : `→ ${fmtKg(fwd)} good`) : 'in process',

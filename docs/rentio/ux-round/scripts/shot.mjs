@@ -1,0 +1,23 @@
+// Screenshot one page: node shot.mjs <port> <user> <path> <width> <outfile> [theme]
+import { writeFileSync } from 'node:fs';
+const [port, user, path, width, out, theme = 'light'] = process.argv.slice(2);
+const tgt = await (await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' })).json();
+const ws = new WebSocket(tgt.webSocketDebuggerUrl);
+await new Promise((r) => ws.addEventListener('open', r));
+let id = 0; const pending = new Map(); const errors = [];
+ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.text); });
+const send = (method, params = {}) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const ev = async (x) => (await send('Runtime.evaluate', { expression: x, awaitPromise: true, returnByValue: true })).result?.result?.value;
+await send('Runtime.enable'); await send('Page.enable');
+const w = Number(width); const h = w < 600 ? 844 : 900;
+await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: w < 600 });
+await send('Page.navigate', { url: 'http://127.0.0.1:5173/' }); await sleep(1200);
+await ev(`(() => { const k='rentio.erp.db.v1'; const d=JSON.parse(localStorage.getItem(k)); d.session.userId='${user}'; d.settings=d.settings||{}; d.settings['${user}']={...(d.settings['${user}']||{}), theme:'${theme}'}; localStorage.setItem(k, JSON.stringify(d)); localStorage.setItem(k+'.signin','in'); })()`);
+await send('Page.navigate', { url: `http://127.0.0.1:5173/o/rentio/w/plant1/${path}` }); await sleep(1400);
+await ev(`(() => { const m=document.querySelector('main'); if(m){ m.style.height='auto'; m.style.overflow='visible'; } document.querySelectorAll('.workspace,.shell,.app').forEach(e=>{e.style.height='auto';e.style.overflow='visible'}); })()`);
+const H = Math.min(await ev('document.documentElement.scrollHeight'), 5000);
+const r = await send('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: w, height: H, scale: 1 }, captureBeyondViewport: true });
+writeFileSync(out, Buffer.from(r.result.data, 'base64'));
+console.log(out, H, errors.length ? errors : 'no errors');
+process.exit(0);

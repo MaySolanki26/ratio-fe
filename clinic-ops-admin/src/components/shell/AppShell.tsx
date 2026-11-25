@@ -171,9 +171,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function IconRail({ mod, onHelp }: { mod: string; onHelp: () => void }) {
   const actor = useActor();
-  const unread = inboxUnreadCount(actor);
-  const navigate = useNavigate();
-  const location = useLocation();
   return (
     <nav className="rail" aria-label="Modules">
       <Link to={`${wsBase(actor.workspaceId)}/dashboard`} className="rail-brand" aria-label={`${organization().name} home`} data-tooltip={organization().name}>
@@ -182,8 +179,8 @@ function IconRail({ mod, onHelp }: { mod: string; onHelp: () => void }) {
       <ul className="rail-list">
         {modules()
           .filter((m) => m.id !== 'admin' && moduleVisible(actor, m))
-          .map((m, i) => (
-            <li key={m.id} style={{ order: i < 2 ? i : i + 1 }}>
+          .map((m) => (
+            <li key={m.id}>
               <Link
                 to={moduleLanding(actor, m)}
                 className={cx('rail-item', mod === m.id && 'is-active')}
@@ -195,13 +192,6 @@ function IconRail({ mod, onHelp }: { mod: string; onHelp: () => void }) {
               </Link>
             </li>
           ))}
-        {/* Work inbox: 3rd item in the rail, after Home and Scheduling (owner rule 69) */}
-        <li style={{ order: 2 }}>
-          <button type="button" className={cx('rail-item', isInboxPath(location.pathname) && 'is-active')} aria-current={isInboxPath(location.pathname) ? 'page' : undefined} aria-label={`${inboxLabel()}${unread ? `, ${unread} unread` : ''}`} data-tooltip={inboxLabel()} onClick={() => navigate(inboxPath(actor.workspaceId))}>
-            <Icon name="inbox" />
-            {/* no count badge on the icon rail (owner, 2026-11-24); the unread count stays in the label */}
-          </button>
-        </li>
       </ul>
       <ul className="rail-list rail-bottom">
         <li>

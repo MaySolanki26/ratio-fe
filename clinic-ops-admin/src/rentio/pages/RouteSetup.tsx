@@ -6,7 +6,7 @@ import { useAct, useR } from '../store';
 import { RouteGraphic } from './_graphA';
 import { wsBase } from '../../lib/routes';
 import { scopedLots } from '../../domain/rentio/scope';
-import { Details, FormButton, ImplNote, Kpi, KpiRow, PageLink, Panel, RPage, Status, Table, Who, fmtDay, fmtTime, str, useCan, useFocusId } from '../ui';
+import { Details, FormButton, ImplNote, PageLink, Panel, RPage, Status, Table, Who, fmtDay, fmtTime, str, useCan, useFocusId } from '../ui';
 
 /** Route completeness: every activity has an explicit disposition (demo values, pending factory walkthrough). */
 const COMPLETENESS = [
@@ -32,20 +32,9 @@ export default function RouteSetup() {
     <RPage
       title="Process route & machines"
       description="The order of processing stages, who owns each stage, and which machines are ready."
-      intro="A new route applies to new lots; lots already in progress keep their route."
-    >
-      <KpiRow>
-        <Kpi label="Active route version" value={`v${s.route.version}`} note={`${s.route.stages.length} stages`} />
-        <Kpi label="Lots on earlier versions" value={lotsOnOld} note="keep their original route" />
-        <Kpi label="Equipment released" value={`${s.equipment.filter((e) => e.status === 'released').length}/${s.equipment.length}`} tone={s.equipment.some((e) => e.status !== 'released') ? 'warning' : 'success'} />
-      </KpiRow>
-
-      <RouteGraphic s={s} actor={actor} now={now} base={wsBase(db.session.workspaceId)} />
-
-      <Panel
-        title={`Route v${s.route.version}`}
-        meta="Purchase → Intake/QC → R1 → stages → F1"
-        actions={
+      actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">A new route applies to new lots; lots already in progress keep their route.</p>
           <FormButton
             label="Activate new route version"
             icon="plus"
@@ -63,47 +52,12 @@ export default function RouteSetup() {
               return run('Activate route version', (ctx) => activateRoute(ctx, { stages, change: str(v.change) }), { key, success: (ver) => `Route v${ver} active` });
             }}
           />
-        }
-      >
-        <Table
-          cols={[
-            { key: 'i', label: '#', render: (r) => r.i + 1 },
-            { key: 'label', label: 'Stage', render: (r) => <strong>{r.label}</strong> },
-            { key: 'owner', label: 'Owner', render: (r) => <Who id={r.owner} /> },
-            { key: 'backup', label: 'Backup', render: (r) => <Who id={r.backup} /> },
-            { key: 'min', label: 'Planned', num: true, render: (r) => `${r.plannedMinutes} min` },
-            { key: 'tol', label: 'Loss allowed (demo)', num: true, render: (r) => `${r.tolerancePct}%` },
-          ]}
-          rows={stageRows}
-          rowKey={(r) => r.code}
-        />
-      </Panel>
+        </div>
+      }
+    >
+      <RouteGraphic s={s} actor={actor} now={now} base={wsBase(db.session.workspaceId)} />
 
-      <Details summary="Is every activity covered? (cleaning, pitting, husk separation, finishing)">
-          <Table
-            cols={[
-              { key: 'a', label: 'Activity', render: (r) => r.activity },
-              { key: 'd', label: 'Disposition', render: (r) => <strong>{r.disposition}</strong> },
-              { key: 'n', label: 'Note', render: (r) => <span className="muted">{r.note}</span> },
-            ]}
-            rows={COMPLETENESS}
-            rowKey={(r) => r.activity}
-          />
-      </Details>
-      <Details summary={`Route history (${s.route.history.length} version${s.route.history.length === 1 ? '' : 's'})`}>
-          <Table
-            cols={[
-              { key: 'v', label: 'Version', render: (r) => `v${r.version}` },
-              { key: 'at', label: 'Activated', render: (r) => fmtTime(r.at) },
-              { key: 'by', label: 'By', render: (r) => <Who id={r.by} /> },
-              { key: 'c', label: 'Change', render: (r) => r.change },
-            ]}
-            rows={[...s.route.history].reverse()}
-            rowKey={(r) => String(r.version)}
-          />
-      </Details>
-
-      <Panel title="Machines & instruments" meta="An unavailable machine stops new runs at its stage">
+      <Panel title="Machines & instruments" meta={`${s.equipment.filter((e) => e.status === 'released').length}/${s.equipment.length} released · an unavailable machine stops new runs at its stage`}>
         <Table
           cols={[
             { key: 'l', label: 'Machine', render: (e) => e.label },
@@ -137,13 +91,54 @@ export default function RouteSetup() {
         />
       </Panel>
 
-      <Panel title="Master lists">
-        <div className="rt-row">
-          <PageLink to="masters/skus">SKUs</PageLink>·<PageLink to="masters/suppliers">Suppliers & farmers</PageLink>·<PageLink to="masters/distributors">Distributors (17)</PageLink>·
-          <PageLink to="masters/retailers">Retailers</PageLink>·<PageLink to="masters/buyers">By-product buyers</PageLink>·<PageLink to="masters/transporters">Transporters</PageLink>·
-          <PageLink to="masters/locations">Godowns & stacks</PageLink>·<PageLink to="hr/employees">Employees</PageLink>
-        </div>
-      </Panel>
+      <div className="rt-split2">
+        <Panel title={`Route v${s.route.version}`} meta={`${s.route.stages.length} stages · ${lotsOnOld} lot(s) on earlier versions keep their route`}>
+          <Details summary="Stage owners, planned times and loss allowed">
+            <Table
+              cols={[
+                { key: 'i', label: '#', render: (r) => r.i + 1 },
+                { key: 'label', label: 'Stage', render: (r) => <strong>{r.label}</strong> },
+                { key: 'owner', label: 'Owner', render: (r) => <Who id={r.owner} /> },
+                { key: 'backup', label: 'Backup', render: (r) => <Who id={r.backup} /> },
+                { key: 'min', label: 'Planned', num: true, render: (r) => `${r.plannedMinutes} min` },
+                { key: 'tol', label: 'Loss allowed (demo)', num: true, render: (r) => `${r.tolerancePct}%` },
+              ]}
+              rows={stageRows}
+              rowKey={(r) => r.code}
+            />
+          </Details>
+          <Details summary="Is every activity covered? (cleaning, pitting, husk separation, finishing)">
+            <Table
+              cols={[
+                { key: 'a', label: 'Activity', render: (r) => r.activity },
+                { key: 'd', label: 'Disposition', render: (r) => <strong>{r.disposition}</strong> },
+                { key: 'n', label: 'Note', render: (r) => <span className="muted">{r.note}</span> },
+              ]}
+              rows={COMPLETENESS}
+              rowKey={(r) => r.activity}
+            />
+          </Details>
+          <Details summary={`Route history (${s.route.history.length} version${s.route.history.length === 1 ? '' : 's'})`}>
+            <Table
+              cols={[
+                { key: 'v', label: 'Version', render: (r) => `v${r.version}` },
+                { key: 'at', label: 'Activated', render: (r) => fmtTime(r.at) },
+                { key: 'by', label: 'By', render: (r) => <Who id={r.by} /> },
+                { key: 'c', label: 'Change', render: (r) => r.change },
+              ]}
+              rows={[...s.route.history].reverse()}
+              rowKey={(r) => String(r.version)}
+            />
+          </Details>
+        </Panel>
+        <Panel title="Master lists">
+          <div className="rt-row">
+            <PageLink to="masters/skus">SKUs</PageLink>·<PageLink to="masters/suppliers">Suppliers & farmers</PageLink>·<PageLink to="masters/distributors">Distributors (17)</PageLink>·
+            <PageLink to="masters/retailers">Retailers</PageLink>·<PageLink to="masters/buyers">By-product buyers</PageLink>·<PageLink to="masters/transporters">Transporters</PageLink>·
+            <PageLink to="masters/locations">Godowns & stacks</PageLink>·<PageLink to="hr/employees">Employees</PageLink>
+          </div>
+        </Panel>
+      </div>
 
       <ImplNote>Masters and setup (M1). Versioned route, lots keep their version (FR-002, BR-021); completeness dispositions FR-092 (pitting "not used" is a demo reason, OQ-01); equipment readiness blocks run start (FR-093, FR-096). Durations, tolerances and measurement basis per stage are demo defaults (OQ-01, OQ-03) — basis: {STAGES.map((x) => `${x.code} ${x.basis}`).join(', ')}.</ImplNote>
     </RPage>

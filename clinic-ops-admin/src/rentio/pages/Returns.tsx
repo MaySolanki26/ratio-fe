@@ -1,7 +1,8 @@
 /** Returns & complaints: lot-linked cases, held returns, QC decision, replacement, credit and recall trace. */
+import '../../styles/rentio-ux-c.css';
 import { useState } from 'react';
 import { Button } from '../../components/primitives/Button';
-import { InlineAlert } from '../../components/primitives/feedback';
+import { InlineAlert, Tabs } from '../../components/primitives/feedback';
 import * as C from '../../domain/rentio/commerce';
 import { descendants } from '../../domain/rentio/engine';
 import { canReadLot, readScope, scopedComplaints, scopedLots, scopedOrders, scopedStockRows, visibleDistributorIds } from '../../domain/rentio/scope';
@@ -35,13 +36,15 @@ export default function Returns() {
     ).values(),
   ];
   const canTrace = sc.all || sc.allDistributors;
+  const [tab, setTab] = useState<'cases' | 'recall'>('cases');
 
   return (
     <RPage
       title="Returns & complaints"
       description="Lot-linked complaints, held returns, QC decisions, replacements, credit and recall tracing."
-      intro="Returned goods stay on hold until QC decides; replacement and credit are tracked separately."
       actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">Returned goods stay on hold until QC decides; replacement and credit are tracked separately.</p>
         <FormButton
           label="New complaint"
           variant="primary"
@@ -63,9 +66,23 @@ export default function Returns() {
             run('Create complaint', (ctx) => C.createComplaint(ctx, { distributorId: str(v.distributorId) || undefined, retailerId: str(v.retailerId) || undefined, orderId: str(v.orderId) && str(v.orderId) !== '__none' ? str(v.orderId) : undefined, lotId: str(v.lotId) && str(v.lotId) !== '__none' ? str(v.lotId) : undefined, category: str(v.category) as Complaint['category'], description: str(v.description) }), { key, success: (c) => `Case ${c.id} opened` })
           }
         />
+        </div>
       }
     >
       <FocusMissing focus={focus} found={!focus || cases.some((c) => c.id === focus)} />
+      {canTrace && (
+        <Tabs
+          label="Returns sections"
+          value={tab}
+          onChange={setTab}
+          tabs={[
+            { id: 'cases', label: 'Cases', count: cases.length },
+            { id: 'recall', label: 'Recall trace' },
+          ]}
+        />
+      )}
+      {/* inactive tab stays in the document (hidden) so links and checks still find it */}
+      <div className="rt-stack" hidden={tab !== 'cases'}>
       <ReturnCharts cases={cases} />
       <Panel title="Cases" meta={`${cases.length}`}>
         <Table
@@ -100,8 +117,13 @@ export default function Returns() {
           />
         </Details>
       </Panel>
+      </div>
 
-      {canTrace ? <RecallView /> : null}
+      {canTrace ? (
+        <div hidden={tab !== 'recall'}>
+          <RecallView />
+        </div>
+      ) : null}
       <ImplNote>
         Lot-linked complaints, unknown lot flagged (FR-063); returns received into held stock (FR-064); replacement linked, not a stock credit (FR-065, EC-34); disposal needs evidence and approval (FR-066); release/dispose with origin history (FR-067); recall case lists descendants, current positions and recipients (FR-062, EC-50) — shown only to roles whose read scope covers the whole distributor network (Owner, Accounts, QC, Back Office). Physical, QC, replacement and credit states are separate (WF-06).
       </ImplNote>

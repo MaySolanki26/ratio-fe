@@ -1,6 +1,8 @@
 /** Distributor stock: own stock, shipment receipts and variances, retailer deliveries, outside sales, counts. */
+import '../../styles/rentio-ux-c.css';
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Button } from '../../components/primitives/Button';
 import { hasCap } from '../../domain/rentio/access';
 import * as C from '../../domain/rentio/commerce';
 import { computePositions } from '../../domain/rentio/engine';
@@ -9,7 +11,7 @@ import { scopedOrders, scopedShipments, scopedStockRows, visibleDistributorIds }
 import { fmtKg, kg, sum } from '../../domain/rentio/units';
 import { distributorOverview } from '../../domain/rentio/views';
 import { useAct, useR } from '../store';
-import { Details, FormButton, ImplNote, Kpi, KpiRow, LotLink, num, Panel, Qty, Reason, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime } from '../ui';
+import { Details, FormButton, ImplNote, LotLink, num, Panel, Qty, Reason, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime } from '../ui';
 import { FocusMissing, Preview, stockOptionLabel } from './_distHelpers';
 import { StopOutcomeButton, stopOfShipment } from './Delivery';
 import { DistributorCharts } from './_graphB';
@@ -29,6 +31,7 @@ export default function Distributors() {
   const scopedView = visibleIds.length < allIds.length;
   const requested = new URLSearchParams(search).get('d') ?? undefined;
   const [sel, setSel] = useState<string>('');
+  const [showAll, setShowAll] = useState(false);
   const pick = (id: string) => {
     setSel(id);
     const q = new URLSearchParams(search);
@@ -67,38 +70,58 @@ export default function Distributors() {
   const focusIds = new Set<string>([...overview.map((x) => x.id), ...ships.map((x) => x.id), ...retail.map((o) => o.id), ...dRows.map((r) => r.lotId)]);
   const focusFound = !focus || focusIds.has(focus);
   const focusRow = focus ? dRows.find((r) => r.lotId === focus) : undefined;
+  // long networks: selected / focused and needs-attention distributors first, top 8 unless expanded
+  const TOP = 8;
+  const attention = (x: (typeof overview)[number]) => x.openDisputes > 0 || x.held > 0 || x.belowMin || x.nearExpiry > 0 || x.stale;
+  const ranked = [...overview].sort((a, b) => Number(b.id === d.id || b.id === focus) - Number(a.id === d.id || a.id === focus) || Number(attention(b)) - Number(attention(a)) || a.id.localeCompare(b.id));
+  const listed = showAll || overview.length <= TOP ? overview : ranked.slice(0, TOP);
 
   return (
-    <RPage title="Distributor stock" description="Own stock, receipts, retailer deliveries and counts per distributor." intro="Stock reduces once — when a retailer delivery is confirmed or an outside sale is recorded.">
+    <RPage
+      title="Distributor stock"
+      description="Own stock, receipts, retailer deliveries and counts per distributor."
+      actions={
+        <div className="rt-headrow">
+          <p className="rt-intro">
+            Stock reduces once — on a confirmed retailer delivery or a recorded outside sale. Showing <strong>{d.id}</strong>: {fmtKg(d.available)} free to sell
+            {d.held ? <> · <span className="tone-text-warning">{fmtKg(d.held)} damaged / held</span></> : null}
+            {d.stale ? <> · <span className="tone-text-warning">figures {d.lastSyncHours} h old</span></> : null}
+          </p>
+        </div>
+      }
+    >
       {requested && !requestedVisible && <FocusMissing focus={requested} found={false} />}
       <FocusMissing focus={focus} found={focusFound} />
-      <Panel title={scopedView ? `Your distributor${overview.length > 1 ? 's' : ''}` : `All distributors (${overview.length})`} meta={`as of ${fmtTime(now)}`}>
+      <div className="rt-split2 rt-wide-left">
+      <Panel title={scopedView ? `Your distributor${overview.length > 1 ? 's' : ''}` : `All distributors (${overview.length})`} meta={`as of ${fmtTime(now)}${listed.length < overview.length ? ' · needs attention first' : ''}`}>
         <Table
           focus={focus && overview.some((x) => x.id === focus) ? focus : undefined}
           cols={[
-            { key: 'id', label: 'Distributor', render: (x) => <button type="button" className="rt-lot" aria-pressed={x.id === d.id} onClick={() => pick(x.id)}>{x.id}</button> },
-            { key: 'n', label: 'Name', render: (x) => x.name.replace(' (fictional)', '') },
+            { key: 'id', label: 'Distributor', render: (x) => <span className="rt-nowrap"><button type="button" className="rt-lot" aria-pressed={x.id === d.id} onClick={() => pick(x.id)}>{x.id}</button> {x.name.replace(' (fictional)', '')}</span> },
             { key: 'p', label: 'In stock', num: true, render: (x) => <Qty g={x.physical} /> },
             { key: 'a', label: 'Available', num: true, render: (x) => <Qty g={x.available} strong /> },
             { key: 't', label: 'Incoming', num: true, render: (x) => <Qty g={x.inTransit} /> },
-            { key: 'sync', label: 'Last update', render: (x) => (x.stale ? <span className="tone-text-warning">Stale · {x.lastSyncHours} h ago</span> : `${x.lastSyncHours} h ago`) },
-            { key: 'f', label: 'Needs attention', render: (x) => <span className="rt-row">{x.openDisputes > 0 && <Status s="disputed" />}{x.held > 0 && <Status s="on hold" />}{x.belowMin && <Status s="below min" />}{x.nearExpiry > 0 && <Status s="near expiry" />}</span> },
+            { key: 'sync', label: 'Updated', render: (x) => <span className="rt-nowrap">{x.stale ? <span className="tone-text-warning">Stale · {x.lastSyncHours} h</span> : `${x.lastSyncHours} h ago`}</span> },
+            { key: 'f', label: 'Flags', render: (x) => <span className="rt-row rt-nowrap">{x.openDisputes > 0 && <Status s="disputed" />}{x.held > 0 && <Status s="on hold" />}{x.belowMin && <Status s="below min" />}{x.nearExpiry > 0 && <Status s="near expiry" />}</span> },
           ]}
-          rows={overview}
+          rows={listed}
           rowKey={(x) => x.id}
           rowClass={(x) => (x.id === d.id ? 'is-total' : undefined)}
         />
+        {overview.length > TOP && (
+          <Button size="compact" variant="ghost" className="rt-showall" onClick={() => setShowAll((v) => !v)}>
+            {showAll ? `Show top ${TOP}` : `Show all (${overview.length})`}
+          </Button>
+        )}
+        {overview.length > 1 && (
+          <Details summary="Stock chart — every distributor in your area">
+            <DistributorCharts s={s} overview={overview} rows={rows} ships={ships} selected={d.id} base={wsBase(db.session.workspaceId)} only="bars" />
+          </Details>
+        )}
       </Panel>
+      <DistributorCharts s={s} overview={overview} rows={rows} ships={ships} selected={d.id} base={wsBase(db.session.workspaceId)} only="flow" />
+      </div>
 
-      <DistributorCharts s={s} overview={overview} rows={rows} ships={ships} selected={d.id} base={wsBase(db.session.workspaceId)} />
-
-      <KpiRow>
-        <Kpi label={`${d.id} in stock`} value={fmtKg(d.physical)} note={d.stale ? `Stale — last update ${d.lastSyncHours} h ago` : 'Live from postings'} tone={d.stale ? 'warning' : undefined} />
-        <Kpi label="Available to sell" value={fmtKg(d.available)} />
-        <Kpi label="Reserved for retailers" value={fmtKg(d.reserved)} />
-        <Kpi label="Damaged / held" value={fmtKg(d.held)} tone={d.held ? 'warning' : undefined} />
-        <Kpi label="Incoming" value={fmtKg(d.inTransit)} />
-      </KpiRow>
 
       <Panel title="Shipments to receive & shortfalls">
         <Table

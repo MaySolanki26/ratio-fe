@@ -51,7 +51,15 @@ afterEach(() => {
   delete (window as { matchMedia?: unknown }).matchMedia;
 });
 
-const signInButtons = () => screen.queryAllByRole('button', { name: /^Sign in as / });
+const userSelect = () => screen.getByRole('combobox', { name: 'User and role' }) as HTMLSelectElement;
+const userOptions = () => within(userSelect()).getAllByRole('option').filter((o) => (o as HTMLOptionElement).value) as HTMLOptionElement[];
+/** Login screen: pick the person in the dropdown and press Sign In. */
+const loginAs = (name: string) => {
+  const opt = userOptions().find((o) => o.textContent!.startsWith(`${name} · `));
+  if (!opt) throw new Error(`no demo user ${name}`);
+  fireEvent.change(userSelect(), { target: { value: opt.value } });
+  fireEvent.click(screen.getByRole('button', { name: 'Sign In' }));
+};
 
 describe('demo login screen', () => {
   it('a fresh browser shows the chooser (not an automatic Owner session) with all 15 users by role', () => {
@@ -59,8 +67,8 @@ describe('demo login screen', () => {
     const r = open('/');
     expect(window.location.pathname).toBe('/login');
     expect(r.container.textContent).toContain('Local demo sign-in — no password, simulated roles, fictional data');
-    const buttons = signInButtons();
-    expect(buttons).toHaveLength(15);
+    const options = userOptions();
+    expect(options).toHaveLength(15);
     for (const [name, role] of [
       ['Vikram Mehta', 'Owner'],
       ['Sunita Rao', 'Factory Head'],
@@ -77,10 +85,18 @@ describe('demo login screen', () => {
       ['Neha Joshi', 'Accounts'],
       ['Pooja Desai', 'HR'],
       ['Arjun Menon', 'Admin'],
-    ])
-      expect(buttons.some((b) => b.getAttribute('aria-label')!.startsWith(`Sign in as ${name}, `) && b.getAttribute('aria-label')!.toLowerCase().includes(role.toLowerCase().split(' ')[0])), `${name} · ${role}`).toBe(true);
+    ]) {
+      const opt = options.find((o) => o.textContent!.startsWith(`${name} · `));
+      expect(opt, name).toBeDefined();
+      const group = opt!.parentElement as HTMLOptGroupElement;
+      expect(group.tagName, name).toBe('OPTGROUP');
+      expect(group.label.toLowerCase(), `${name} · ${role}`).toContain(role.toLowerCase().split(' ')[0]);
+    }
     // grouped by role
-    expect(within(screen.getByRole('region', { name: /Stage owner/i })).getAllByRole('button')).toHaveLength(4);
+    const stage = [...userSelect().querySelectorAll('optgroup')].find((g) => /Stage owner/i.test(g.label))!;
+    expect(stage.querySelectorAll('option')).toHaveLength(4);
+    // Sign In waits for a choice
+    expect(screen.getByRole('button', { name: 'Sign In' })).toBeDisabled();
     // no business figures on the sign-in screen
     expect(r.container.textContent).not.toMatch(/\bkg\b|₹|RT-00\d|alert/i);
     expect(r.container.querySelector('.rt-panel, .rail, main#main')).toBeNull();
@@ -88,31 +104,17 @@ describe('demo login screen', () => {
     r.unmount();
   });
 
-  it('search filters by name and by role', () => {
-    freshBrowser();
-    const r = open('/login');
-    const box = screen.getByRole('searchbox', { name: 'Search demo users' });
-    fireEvent.change(box, { target: { value: 'farah' } });
-    expect(signInButtons().map((b) => b.getAttribute('aria-label'))).toEqual([expect.stringMatching(/^Sign in as Farah Khan/)]);
-    fireEvent.change(box, { target: { value: 'stage owner' } });
-    expect(signInButtons()).toHaveLength(4);
-    fireEvent.change(box, { target: { value: 'zzz' } });
-    expect(signInButtons()).toHaveLength(0);
-    expect(r.container.textContent).toContain('No demo user matches');
-    r.unmount();
-  });
-
   it('Vikram lands on the owner overview; Anil lands on My work', () => {
     freshBrowser();
     const r = open('/');
-    fireEvent.click(screen.getByRole('button', { name: /^Sign in as Vikram Mehta/ }));
+    loginAs('Vikram Mehta');
     expect(window.location.pathname).toBe(`${WS}/dashboard`);
     expect(getDb().session.userId).toBe('u_owner');
     r.unmount();
 
     freshBrowser();
     const r2 = open('/');
-    fireEvent.click(screen.getByRole('button', { name: /^Sign in as Anil Kumar/ }));
+    loginAs('Anil Kumar');
     expect(window.location.pathname).toBe(`${WS}/home/my-work`);
     expect(r2.container.textContent).toContain('My work');
     r2.unmount();
@@ -127,7 +129,7 @@ describe('demo login screen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Account: Vikram Mehta, Owner' }));
     fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
     expect(window.location.pathname).toBe('/login');
-    expect(signInButtons()).toHaveLength(15);
+    expect(userOptions()).toHaveLength(15);
     expect(isSignedIn()).toBe(false);
     r.unmount();
     // business data unchanged in memory and in storage
@@ -150,13 +152,13 @@ describe('demo login screen', () => {
     const r = open(`${WS}/distribution/orders?focus=SO-1`);
     expect(window.location.pathname).toBe('/login');
     expect(new URLSearchParams(window.location.search).get('next')).toBe(`${WS}/distribution/orders?focus=SO-1`);
-    fireEvent.click(screen.getByRole('button', { name: /^Sign in as Kiran Shah/ }));
+    loginAs('Kiran Shah');
     expect(window.location.pathname + window.location.search).toBe(`${WS}/distribution/orders?focus=SO-1`);
     r.unmount();
 
     freshBrowser();
     const d = open(`${WS}/distribution/orders`);
-    fireEvent.click(screen.getByRole('button', { name: /^Sign in as Dinesh Agarwal/ }));
+    loginAs('Dinesh Agarwal');
     expect(window.location.pathname).toBe(`${WS}/home/my-work`);
     d.unmount();
   });
@@ -244,8 +246,6 @@ describe('Rentio Inbox', () => {
     fireEvent.click(within(first).getByRole('button', { name: 'Mark read' }));
     expect(unread()).toBe(u0 - 1);
     expect(Object.keys(getSettings('u_kiran').inboxRead ?? {})).toContain(first.dataset.key);
-    // the rail label carries the same unread count
-    expect(screen.getByRole('button', { name: new RegExp(`^Inbox, ${u0 - 1} unread`) })).toBeInTheDocument();
     // unread filter
     fireEvent.click(screen.getByRole('radio', { name: /^Unread/ }));
     expect(inboxRows(main())).toHaveLength(u0 - 1);
@@ -276,7 +276,7 @@ describe('Rentio Inbox', () => {
     r.unmount();
   });
 
-  it('rail button, notification footer and the old work/inbox URL all open Home › Inbox', () => {
+  it('no rail Inbox button; notification footer and the old work/inbox URL open Home › Inbox', () => {
     freshBrowser();
     switchSession('u_dinesh', 'plant1');
     const r = open(`${WS}/work/inbox?x=1`);
@@ -284,8 +284,8 @@ describe('Rentio Inbox', () => {
     expect(r.container.querySelector('main')!.textContent).not.toMatch(/Page not found|No access/);
     r.unmount();
     const r2 = open(`${WS}/sales/returns`);
-    fireEvent.click(screen.getByRole('button', { name: /^Inbox/ }));
-    expect(window.location.pathname).toBe(`${WS}/home/inbox`);
+    // the icon rail no longer carries an Inbox shortcut (owner, 2026-11-25)
+    expect(within(r2.container.querySelector<HTMLElement>('nav.rail')!).queryByRole('button', { name: /^Inbox/ })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^Notifications/ }));
     const foot = screen.getByRole('link', { name: 'Open Inbox' });
     expect(foot.getAttribute('href')).toBe(`${WS}/home/inbox`);
@@ -320,7 +320,7 @@ describe('light theme first, explicit choice per demo user', () => {
     freshBrowser();
     const login = open('/login');
     expect(html().getAttribute('data-theme')).toBe('light');
-    fireEvent.click(screen.getByRole('button', { name: /^Sign in as Vikram Mehta/ }));
+    loginAs('Vikram Mehta');
     await rtlAct(async () => {});
     expect(html().getAttribute('data-theme')).toBe('light');
     pickMode('Dark');
@@ -346,7 +346,7 @@ describe('light theme first, explicit choice per demo user', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Log out' }));
     expect(window.location.pathname).toBe('/login');
     expect(html().getAttribute('data-theme')).toBe('light');
-    fireEvent.click(screen.getByRole('button', { name: /^Sign in as Vikram Mehta/ }));
+    loginAs('Vikram Mehta');
     expect(html().getAttribute('data-theme')).toBe('dark');
     r.unmount();
     // Kiran's settings were never made dark by Vikram's choice

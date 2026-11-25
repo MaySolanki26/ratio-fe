@@ -7,8 +7,9 @@ import { acknowledgeAlert } from '../../domain/rentio/people';
 import { readScope } from '../../domain/rentio/scope';
 import { alertsFor, ctaFor, isAcked, type Alert } from '../../domain/rentio/views';
 import { useAct, useR } from '../store';
-import { Details, ImplNote, Kpi, KpiRow, PageLink, Panel, Reason, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
+import { Details, ImplNote, PageLink, Panel, Reason, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
 import { AlertsChart } from './_graphB';
+import { useShowMore } from './_uxA';
 
 const SEVERITIES: Alert['severity'][] = ['critical', 'high', 'medium', 'low'];
 
@@ -43,22 +44,19 @@ export default function Alerts() {
   const list = all.filter((a) => (!sev || a.severity === sev) && (!fam || a.family === fam));
   const failures = readScope(actor).factory ? s.failures : s.failures.filter((f) => f.actorId === actor.id);
   const focused = focus ? all.find((a) => a.sourceId === focus) : undefined;
+  const escalated = all.filter((a) => a.escalation > 0).length;
+  // top 8 by rank; the focused alert and alerts that belong to an incident always stay visible
+  const more = useShowMore(list, 8, (a) => a.sourceId === focus || !!incidentFor(s, a));
 
   return (
     <RPage title="Alerts & exceptions" description="Open exceptions in your area, each with a named owner and a direct action.">
       {focus && !focused && <InlineAlert tone="info">That exception is resolved or not in your area of work.</InlineAlert>}
-      <KpiRow>
-        {SEVERITIES.map((x) => (
-          <Kpi key={x} label={x[0].toUpperCase() + x.slice(1)} value={all.filter((a) => a.severity === x).length} tone={x === 'critical' || x === 'high' ? 'danger' : x === 'medium' ? 'warning' : undefined} />
-        ))}
-        <Kpi label="Escalated" value={all.filter((a) => a.escalation > 0).length} tone={all.some((a) => a.escalation > 0) ? 'warning' : undefined} />
-      </KpiRow>
       <AlertsChart alerts={all} families={FAMILIES} />
       <Panel
         title="Open alerts"
-        meta={`${list.length} of ${all.length} · as of ${fmtTime(now)} IST`}
+        meta={`${list.length} of ${all.length} · ${escalated} escalated · as of ${fmtTime(now)} IST`}
         actions={
-          <div className="rt-row">
+          <div className="rt-tabpick">
             <select className="input" aria-label="Severity" value={sev} onChange={(e) => setSev(e.target.value)}>
               <option value="">All severities</option>
               {SEVERITIES.map((x) => (
@@ -77,7 +75,7 @@ export default function Alerts() {
         }
       >
         <Table
-          rows={list}
+          rows={more.visible}
           rowKey={(a) => a.sourceId}
           focus={focus}
           empty="No open alerts in your area."
@@ -129,7 +127,8 @@ export default function Alerts() {
             },
           ]}
         />
-        <p className="muted">Acknowledging records who is acting. It does not change stock, approve anything or close the alert.</p>
+        {more.toggle}
+        <p className="muted small">Acknowledging records who is acting. It does not change stock, approve anything or close the alert.</p>
       </Panel>
       <Details summary={`Blocked attempts (${failures.length})`}>
         <Table

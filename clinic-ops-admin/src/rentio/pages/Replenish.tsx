@@ -12,7 +12,8 @@ import { confirmPartnerStock, openSuggestions, reviewSuggestion, scopedSuggestio
 import { wsBase } from '../../lib/routes';
 import { useAct, useR } from '../store';
 import { ReplenishGraphics } from './_graphA';
-import { FormButton, ImplNote, Kpi, KpiRow, Panel, RPage, Table, fmtTime, num, str, useFocusId } from '../ui';
+import '../../styles/rentio-ux-b.css';
+import { FormButton, ImplNote, Panel, RPage, Table, fmtTime, num, str, useFocusId } from '../ui';
 
 const KIND: Record<Suggestion['kind'], string> = { raw: 'Plant raw', stores: 'Critical stores', partner: 'Partner (distributor)' };
 
@@ -30,31 +31,33 @@ export default function Replenish() {
     const rows = list.filter((x) => x.kind === kind);
     if (!rows.length) return null;
     return (
-      <Panel key={kind} title={KIND[kind]} meta={`${openSuggestions(rows).length} to review · data as of ${fmtTime(now)}`}>
+      <Panel key={kind} title={KIND[kind]} meta={`${openSuggestions(rows).length} to review`}>
         <Table
           focus={focus}
           rowKey={(x) => x.key}
           rows={rows}
           empty="Nothing to replenish."
           cols={[
-            { key: 't', label: 'Item', render: (x) => (<><strong>{x.title}</strong><div className="muted small">{x.formula}</div></>) },
+            { key: 't', label: 'Item', render: (x) => (<><strong>{x.title}</strong><div className="muted small">{x.qty > 0 ? `arrange by ${x.orderBy} · ` : ''}reviewer {userName(x.reviewerId)}</div></>) },
             { key: 'q', label: 'Suggested', num: true, render: (x) => (x.qty > 0 ? <strong>{x.qtyLabel}</strong> : <span className="muted">No action — above minimum</span>) },
             {
               key: 'in',
-              label: 'Inputs (units · source)',
+              label: 'How it is worked out',
               render: (x) => (
-                <ul className="rt-inputs">
-                  {x.inputs.map((i) => (
-                    <li key={i.label}>
-                      {i.label}: <strong>{i.value}</strong> <span className="muted small">— {i.source}</span>
-                    </li>
-                  ))}
-                </ul>
+                <details className="rt-cell-more" open={focus === x.key}>
+                  <summary>{x.inputs.length} inputs (units · source)</summary>
+                  <div className="muted small">{x.formula}</div>
+                  <ul className="rt-inputs">
+                    {x.inputs.map((i) => (
+                      <li key={i.label}>
+                        {i.label}: <strong>{i.value}</strong> <span className="muted small">— {i.source}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               ),
             },
             { key: 'f', label: 'Freshness', render: (x) => (<><StatusChip label={x.freshness === 'stale' ? 'Stale data' : 'Current'} tone={x.freshness === 'stale' ? 'warning' : 'success'} /><div className="muted small">cutoff {fmtTime(x.cutoff)}</div>{x.confirmed && <div className="muted small">confirmed by {userName(x.confirmed.by)}</div>}</>) },
-            { key: 'd', label: 'Arrange by', render: (x) => (x.qty > 0 ? x.orderBy : '—') },
-            { key: 'r', label: 'Reviewer', render: (x) => userName(x.reviewerId) },
             {
               key: 'st',
               label: 'Review',
@@ -143,13 +146,8 @@ export default function Replenish() {
     <RPage
       title="Replenishment suggestions"
       description="What to buy or send, derived from demand, minimums, lead times, eligible stock and timely incoming supply. Suggestions never post anything."
+      intro={list.length ? `${open.length} suggestion(s) to review · data as of ${fmtTime(now)}` : undefined}
     >
-      <KpiRow>
-        <Kpi label="To review" value={open.length} tone={open.length ? 'warning' : undefined} />
-        <Kpi label="Plant raw" value={list.find((x) => x.kind === 'raw')?.qtyLabel ?? '—'} note="suggested purchase" />
-        <Kpi label="Stores below minimum" value={list.filter((x) => x.kind === 'stores' && x.qty > 0).length} />
-        <Kpi label="Partners below reorder level" value={list.filter((x) => x.kind === 'partner').length} note={`${list.filter((x) => x.needsConfirmation).length} with stale data`} />
-      </KpiRow>
       {list.length > 0 && <ReplenishGraphics list={list} />}
       {list.some((x) => x.needsConfirmation) && <InlineAlert tone="warning" title="Stale partner data">Some distributor figures are older than {DEMO.staleDistributorHours} h. Confirm current stock before acting — stale data never becomes an order automatically.</InlineAlert>}
       {section('raw')}

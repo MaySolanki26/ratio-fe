@@ -90,22 +90,15 @@ export default function Season() {
             rowKey={(r) => r.id}
             empty="No active runs."
             cols={[
-              { key: 'r', label: 'Active run', render: (r) => <Ref>{r.id}</Ref> },
-              { key: 's', label: 'Stage', render: (r) => r.stage },
+              { key: 'r', label: 'Active run', render: (r) => <span title={`Planned ${fmtDuration(r.plannedMinutes * 60_000)}`}><Ref>{r.id}</Ref> {r.stage}</span> },
               { key: 'f', label: 'Stored factor', num: true, render: (r) => `× ${r.seasonFactor}` },
-              { key: 'p', label: 'Planned', num: true, render: (r) => fmtDuration(r.plannedMinutes * 60_000) },
               { key: 'b', label: 'Planned finish', render: (r) => fmtTime(r.baselineFinish) },
               { key: 'e', label: 'Expected finish', render: (r) => <Eta t={runTiming(r, now)} /> },
             ]}
           />
         </Panel>
 
-        <Panel title="Shift handover summary" meta={`As of ${fmtTime(now)} IST`}>
-          <KpiRow>
-            <Kpi label="Active runs" value={activeRuns.length} />
-            <Kpi label="Active holds" value={holds.length} tone={holds.length ? 'warning' : undefined} />
-            <Kpi label="Pending receipts" value={pending.length} tone={pending.some((h) => h.received > 0) ? 'danger' : undefined} />
-          </KpiRow>
+        <Panel title="Shift handover summary" meta={`As of ${fmtTime(now)} IST · ${activeRuns.length} active runs · ${holds.length} holds · ${pending.length} pending receipts`}>
           <Table
             rows={[
               ...activeRuns.map((r) => ({ k: r.id, what: `${r.stage} run on ${r.inputLotId}`, who: userName(r.ownerId), q: fmtKg(r.inputQty), st: runTiming(r, now).status })),
@@ -176,18 +169,7 @@ export default function Season() {
             },
           ]}
         />
-        <h3 className="rt-h3">Today ({today}): target vs actual forward output</h3>
         <TargetChart rows={targetRows.map((r) => ({ code: r.st.code, label: r.st.label, target: r.target, actual: r.actual }))} />
-        <Table
-          rows={targetRows}
-          rowKey={(r) => r.st.code}
-          cols={[
-            { key: 's', label: 'Stage', render: (r) => r.st.label },
-            { key: 't', label: 'Target', num: true, render: (r) => (r.target ? fmtKg(r.target) : '—') },
-            { key: 'a', label: 'Actual (completed today)', num: true, render: (r) => fmtKg(r.actual) },
-            { key: 'v', label: 'Status', render: (r) => (r.target ? <Status s={r.actual >= r.target ? 'completed' : 'pending'} /> : '—') },
-          ]}
-        />
       </Panel>
 
       <Panel title="Seven-day forecast" meta="Projected output — not stock, cannot be reserved">

@@ -11,7 +11,7 @@ import type { Suggestion } from '../../domain/rentio/replenish';
 import type { Handover, Hold, Purchase, Repack, RentioState, StageRun, StockCount } from '../../domain/rentio/types';
 import { fmtKg, type Grams, sum } from '../../domain/rentio/units';
 import { byproductReconciliation, stageName } from '../../domain/rentio/views';
-import { routeFlow, stockFlow } from '../flows';
+import { routeFlow, STAGE_SHORT, stockFlow } from '../flows';
 import { type BarRow, CAT, ChartGrid, FlowChain, type FlowNode, MASS_SEGS, massRows, RunTimeline, type Seg, ShareStrip, StackBars, STATUS } from '../graphics';
 
 const kgOf = (rs: StockRow[]) => sum(rs.map((r) => r.qty));
@@ -41,11 +41,32 @@ const CONDITION_SEGS: Seg[] = [
 
 // ---------------------------------------------------------------- Godowns
 
-export function GodownGraphics({ s, rows, handovers, base, stacks, godowns, capacity, labelOf, focus }: { s: RentioState; rows: StockRow[]; handovers: Handover[]; base: string; stacks: string[]; godowns: string[]; capacity: (id: string) => Grams; labelOf: (id: string) => string; focus?: string }) {
+type GodownProps = { s: RentioState; rows: StockRow[]; handovers: Handover[]; base: string; stacks: string[]; godowns: string[]; capacity: (id: string) => Grams; labelOf: (id: string) => string; focus?: string };
+
+export function GodownGraphics(p: GodownProps) {
+  return (
+    <>
+      <GodownStackMap {...p} />
+      <GodownFlow {...p} />
+    </>
+  );
+}
+
+/** Stack map: each stack / godown against its capacity (condition parts + free space). */
+export function GodownStackMap(p: GodownProps) {
+  return godownCharts(p).map;
+}
+
+/** Godown flow: gate → R1 → stages → put-away → F1 → road. */
+export function GodownFlow(p: GodownProps) {
+  return godownCharts(p).flow;
+}
+
+function godownCharts({ s, rows, handovers, base, stacks, godowns, capacity, labelOf, focus }: GodownProps) {
   const food = foodRows(rows);
   const at = (loc: string) => food.filter((r) => r.loc === loc || (r.location?.godown === loc && !stacks.includes(r.loc)));
-  const ids = [...stacks, ...godowns.filter((g) => g !== 'F1' && g !== 'STORES')];
-  const bars: BarRow[] = ids.map((id) => {
+  const others = godowns.filter((g) => g !== 'F1' && g !== 'STORES');
+  const bar = (id: string): BarRow => {
     const here = at(id);
     const v = conditionValues(here);
     const used = kgOf(here);
@@ -60,8 +81,10 @@ export function GodownGraphics({ s, rows, handovers, base, stacks, godowns, capa
       values: { ...v, freeCap: cap ? Math.max(0, cap - used) : 0 },
       note: [bags ? `${bags} bags` : '', grades, cap ? `cap ${fmtKg(cap)}` : 'no limit'].filter(Boolean).join(' · '),
     };
-  });
-  const max = Math.max(1, ...ids.map((id) => Math.max(capacity(id), kgOf(at(id)))));
+  };
+  // stacks and the large godowns each get their own scale, so a 3 t stack is not drawn against a 60 t godown
+  const scale = (ids: string[]) => Math.max(1, ...ids.map((id) => Math.max(capacity(id), kgOf(at(id)))));
+  const capSegs = [...CONDITION_SEGS, { key: 'freeCap', label: 'Free capacity', color: STATUS.faint, notCounted: true }].filter((x) => x.key !== 'custody');
   const kind = (k: string[]) => food.filter((r) => k.includes(r.location?.kind));
   const putaway = sum(handovers.filter((h) => h.toStage === 'F1').map((h) => outstanding(h)));
   const prodPending = sum(handovers.filter((h) => h.toStage !== 'F1' && h.toStage !== 'R1').map((h) => outstanding(h)));
@@ -75,12 +98,15 @@ export function GodownGraphics({ s, rows, handovers, base, stacks, godowns, capa
     { key: 'f1', label: 'F1 stacks', value: `${sum(f1.filter((r) => r.lot.bagSize).map((r) => Math.floor(r.qty / r.lot.bagSize!))).toLocaleString('en-IN')} bags`, magnitude: kgOf(f1), sub: fmtKg(kgOf(f1)), status: f1.some((r) => r.held || r.expired) ? { label: `${fmtKg(kgOf(f1.filter((r) => r.held || r.expired)))} on hold`, tone: 'warn' } : undefined },
     { key: 'road', label: 'Dispatched (on the road)', value: fmtKg(kgOf(kind(['transit']))), magnitude: kgOf(kind(['transit'])), to: `${base}/distribution/orders` },
   ];
-  return (
-    <>
-      <StackBars title="Stack map — what each stack holds against its capacity" caption="kg · bar length = capacity; grey = free space" segs={[...CONDITION_SEGS, { key: 'freeCap', label: 'Free capacity', color: STATUS.faint }].filter((x) => x.key !== 'custody')} rows={bars} rowHeader="Stack / godown" max={max} focus={focus} empty="No godowns in your area." />
-      <FlowChain title="Godown flow" caption={`kg now at each step · ${s.route.stages.length}-stage route between R1 and F1`} nodes={nodes} />
-    </>
-  );
+  return {
+    map: (
+      <ChartGrid>
+        <StackBars title="Stack map — Finished Godown F1" caption="kg · bar length = stack capacity; grey = free space" segs={capSegs} rows={stacks.map(bar)} rowHeader="Stack" max={scale(stacks)} focus={focus} empty="No stacks in your area." />
+        <StackBars title="Other godowns" caption="kg · raw, by-product and quarantine against their capacity" segs={capSegs} rows={others.map(bar)} rowHeader="Godown" max={scale(others)} focus={focus} empty="No godowns in your area." />
+      </ChartGrid>
+    ),
+    flow: <FlowChain title="Godown flow" caption={`kg now at each step · ${s.route.stages.length}-stage route between R1 and F1`} nodes={nodes} />,
+  };
 }
 
 // ---------------------------------------------------------------- Inventory
@@ -105,45 +131,32 @@ export function InventoryGraphics({ s, actor, now, base, rows, buckets, bucketOf
 export function ByproductGraphics({ s }: { s: RentioState }) {
   const rec = byproductReconciliation(s);
   const name = (t: string) => (t === 'HUSK' ? 'Husk' : 'Churi');
+  // one flow per by-product: generated → kept, with what left the store as exits (the reconciliation table is on the page)
   return (
-    <>
-      <ChartGrid>
-        {rec.map((r) => (
-          <FlowChain
-            key={r.type}
-            title={`${name(r.type)} flow`}
-            caption="kg · generated in peeling → kept in store or leaving the plant"
-            nodes={[
-              { key: 'gen', label: 'Generated', value: fmtKg(r.generation + r.opening), magnitude: r.generation + r.opening, sub: r.opening ? `incl. ${fmtKg(r.opening)} opening` : 'from production runs' },
-              {
-                key: 'kept',
-                label: 'Kept in store',
-                value: fmtKg(r.closing),
-                magnitude: r.closing,
-                status: r.reconciled ? { label: 'Reconciled', tone: 'good' } : { label: 'Mismatch', tone: 'bad' },
-                exits: [
-                  r.internal ? { label: 'Used internally', value: fmtKg(r.internal) } : null,
-                  r.external ? { label: 'Sold to buyers', value: fmtKg(r.external) } : null,
-                  r.disposal ? { label: 'Disposed', value: fmtKg(r.disposal), tone: 'warn' as const } : null,
-                ].filter(Boolean) as FlowNode['exits'],
-              },
-            ]}
-          />
-        ))}
-      </ChartGrid>
-      <StackBars
-        title="Husk & Churi — what happened to it"
-        caption="kg · exclusive parts of everything generated"
-        segs={[
-          { key: 'kept', label: 'Kept in store', color: CAT[0] },
-          { key: 'internal', label: 'Used internally', color: CAT[1] },
-          { key: 'external', label: 'Sold to buyers', color: CAT[2] },
-          { key: 'disposal', label: 'Disposed', color: STATUS.muted, pattern: true },
-        ]}
-        rows={rec.map((r) => ({ id: r.type, label: name(r.type), text: name(r.type), values: { kept: r.closing, internal: r.internal, external: r.external, disposal: r.disposal } }))}
-        rowHeader="By-product"
-      />
-    </>
+    <ChartGrid>
+      {rec.map((r) => (
+        <FlowChain
+          key={r.type}
+          title={`${name(r.type)} flow`}
+          caption="kg · generated in peeling → kept in store or leaving the plant"
+          nodes={[
+            { key: 'gen', label: 'Generated', value: fmtKg(r.generation + r.opening), magnitude: r.generation + r.opening, sub: r.opening ? `incl. ${fmtKg(r.opening)} opening` : 'from production runs' },
+            {
+              key: 'kept',
+              label: 'Kept in store',
+              value: fmtKg(r.closing),
+              magnitude: r.closing,
+              status: r.reconciled ? { label: 'Reconciled', tone: 'good' } : { label: 'Mismatch', tone: 'bad' },
+              exits: [
+                r.internal ? { label: 'Used internally', value: fmtKg(r.internal) } : null,
+                r.external ? { label: 'Sold to buyers', value: fmtKg(r.external) } : null,
+                r.disposal ? { label: 'Disposed', value: fmtKg(r.disposal), tone: 'warn' as const } : null,
+              ].filter(Boolean) as FlowNode['exits'],
+            },
+          ]}
+        />
+      ))}
+    </ChartGrid>
   );
 }
 
@@ -193,7 +206,24 @@ export function HoldGraphics({ holds, affected, counts, labelOf }: { holds: Hold
 
 // ---------------------------------------------------------------- Intake
 
-export function IntakeGraphics({ s, purchases, base, supplierName, focus }: { s: RentioState; purchases: Purchase[]; base: string; supplierName: (id: string) => string; focus?: string }) {
+type IntakeProps = { s: RentioState; purchases: Purchase[]; base: string; supplierName: (id: string) => string; focus?: string };
+
+export function IntakeGraphics(p: IntakeProps) {
+  const c = intakeCharts(p);
+  return (
+    <>
+      {c.flow}
+      {c.bars}
+    </>
+  );
+}
+
+/** Buying flow: ordered → at the gate → accepted into R1 → still to arrive. */
+export const IntakeFlow = (p: IntakeProps) => intakeCharts(p).flow;
+/** Each purchase: accepted / rejected / at the gate / still to arrive. */
+export const IntakePurchaseBars = (p: IntakeProps) => intakeCharts(p).bars;
+
+function intakeCharts({ s, purchases, base, supplierName, focus }: IntakeProps) {
   const b = purchases.map((p) => ({ p, x: purchaseBalances(s, p) }));
   const tot = (f: (x: ReturnType<typeof purchaseBalances>, p: Purchase) => number) => sum(b.map(({ p, x }) => f(x, p)));
   const ordered = tot((_x, p) => p.declaredQty);
@@ -201,8 +231,8 @@ export function IntakeGraphics({ s, purchases, base, supplierName, focus }: { s:
   const accepted = tot((x) => x.accepted);
   const rejected = tot((x) => x.rejected);
   const open = tot((x, p) => (p.status === 'closed' ? 0 : x.open));
-  return (
-    <>
+  return {
+    flow: (
       <FlowChain
         title="Buying flow"
         caption="kg across all purchases"
@@ -213,6 +243,8 @@ export function IntakeGraphics({ s, purchases, base, supplierName, focus }: { s:
           { key: 'open', label: 'Still to arrive', value: fmtKg(open), magnitude: open, sub: 'not stock yet' },
         ]}
       />
+    ),
+    bars: (
       <StackBars
         title="Each purchase — received vs still to come"
         caption="kg · parts are exclusive; together they make up what was received plus the open balance"
@@ -227,8 +259,8 @@ export function IntakeGraphics({ s, purchases, base, supplierName, focus }: { s:
         focus={focus}
         empty="No purchases in your area."
       />
-    </>
-  );
+    ),
+  };
 }
 
 // ---------------------------------------------------------------- Route setup
@@ -241,11 +273,12 @@ export function RouteGraphic({ s, actor, now, base }: { s: RentioState; actor: R
     const n = live.get(code);
     return {
       key: code,
-      label: stageName(code),
+      label: STAGE_SHORT[code] ?? stageName(code),
       value: n?.value ?? `${Math.round(info.plannedMinutes / 6) / 10} h plan`,
       magnitude: n?.magnitude,
-      sub: `Owner ${userName(info.owner)} · backup ${userName(info.backup)}`,
-      status: down.length ? { label: `${down[0].label} unavailable`, tone: 'bad' } : { label: 'Machines released', tone: 'good' },
+      // short enough for eight cards in one row; backup owner and machine names are in the tables below
+      sub: `Owner ${userName(info.owner).split(' ')[0]}`,
+      status: down.length ? { label: 'Machine down', tone: 'bad' } : { label: 'Ready', tone: 'good' },
       current: down.length > 0,
       to: n?.to,
     };

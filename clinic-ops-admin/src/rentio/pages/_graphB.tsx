@@ -42,7 +42,7 @@ function orderBuckets(s: RentioState, o: Order) {
   return v;
 }
 
-export function OrderCharts({ s, orders, order, base, focus, rows, shipments }: { s: RentioState; orders: Order[]; order?: Order; base: string; focus?: string; rows: StockRow[]; shipments: Shipment[] }) {
+export function OrderCharts({ s, orders, order, base, focus, rows, shipments, only }: { s: RentioState; orders: Order[]; order?: Order; base: string; focus?: string; rows: StockRow[]; shipments: Shipment[]; /** render just one graphic (page layouts place them separately) */ only?: 'pipeline' | 'fulfilment' }) {
   const barRows = orders.map((o) => ({
     id: o.id,
     label: `${o.id} · ${o.partyId}`,
@@ -51,6 +51,9 @@ export function OrderCharts({ s, orders, order, base, focus, rows, shipments }: 
     values: orderBuckets(s, o),
     note: o.status === 'credit_hold' ? 'credit hold' : o.advance ? 'advance booking — no stock reserved' : undefined,
   }));
+  if (only === 'pipeline') return order ? <OrderPipeline s={s} order={order} rows={rows} shipments={shipments} /> : null;
+  const fulfilment = <StackBars title="Fulfilment by order" caption="kg per order · each bar = ordered quantity, split into exclusive stages" segs={ORDER_SEGS} rows={barRows} rowHeader="Order" focus={focus ?? order?.id} empty="No factory orders in your area." />;
+  if (only === 'fulfilment') return fulfilment;
   return (
     <ChartGrid>
       {order ? <OrderPipeline s={s} order={order} rows={rows} shipments={shipments} /> : <span />}
@@ -128,6 +131,7 @@ export function DistributorCharts({
   ships,
   selected,
   base,
+  only,
 }: {
   s: RentioState;
   overview: { id: string; name: string; physical: number; reserved: number; inTransit: number; lastSyncHours: number; stale: boolean }[];
@@ -135,6 +139,8 @@ export function DistributorCharts({
   ships: Shipment[];
   selected: string;
   base: string;
+  /** render just one graphic (page layouts place them separately) */
+  only?: 'bars' | 'flow';
 }) {
   const barRows = overview.map((d) => {
     const mine = rows.filter((r) => r.location?.distributorId === d.id && (r.location.kind === 'distributor' || r.location.kind === 'distributor-held'));
@@ -175,6 +181,9 @@ export function DistributorCharts({
         { key: 'delivered', label: 'Delivered to retailers', value: fmtKg(delivered), magnitude: delivered, exits: outside ? [{ label: 'Outside-app sales', value: fmtKg(outside) }] : undefined, done: delivered > 0 },
       ]
     : [];
+  const bars = <StackBars title="Distributor stock" caption="kg per distributor in your area · exclusive parts" segs={DIST_SEGS} rows={barRows} rowHeader="Distributor" focus={selected} empty="No distributor in your area." />;
+  if (only === 'bars') return bars;
+  if (only === 'flow') return d ? <FlowChain title={`${d.id} — goods flow`} caption="From factory dispatch to retailer delivery (kg)" nodes={nodes} /> : null;
   return (
     <ChartGrid>
       <StackBars title="Distributor stock" caption="kg per distributor in your area · exclusive parts" segs={DIST_SEGS} rows={barRows} rowHeader="Distributor" focus={selected} empty="No distributor in your area." />

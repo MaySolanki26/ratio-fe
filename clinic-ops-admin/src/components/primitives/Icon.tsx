@@ -100,6 +100,7 @@ import {
   Filter as FunnelIcon,
   Undo2,
   Redo2,
+  ImagePlus,
 } from 'lucide-react';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -110,6 +111,7 @@ const ICONS: Record<string, LucideIcon> = {
   'arrow-left': ArrowLeft,
   'arrow-right': ArrowRight,
   'file-text': FileText,
+  'image-plus': ImagePlus,
   bell: Bell,
   blocks: Blocks,
   building: Building2,

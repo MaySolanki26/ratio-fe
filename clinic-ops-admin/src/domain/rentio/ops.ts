@@ -20,7 +20,7 @@ import {
   requireCap,
   requireScope,
 } from './engine';
-import type { ApprovalType, Basis, Handover, Hold, Intake, Lot, Material, Purchase, RApproval, RunOutput, StageCode, StageRun } from './types';
+import type { ApprovalType, Basis, EvidencePhoto, Handover, Hold, Intake, Lot, Material, Purchase, RApproval, RunOutput, StageCode, StageRun } from './types';
 import { fmtKg, type Grams, kg, rupees, sum, valueOf } from './units';
 
 // ---------------------------------------------------------------- helpers
@@ -93,7 +93,7 @@ export function purchaseBalances(s: Ctx['s'], p: Purchase) {
 
 export function recordIntake(
   ctx: Ctx,
-  i: { purchaseId: string; truck: string; slip: string; grossKg: number; tareKg: number; moisturePct?: number; foreignMatterPct?: number; damagePct?: number; evidence?: string[] },
+  i: { purchaseId: string; truck: string; slip: string; grossKg: number; tareKg: number; moisturePct?: number; foreignMatterPct?: number; damagePct?: number; evidence?: string[]; photos?: EvidencePhoto[] },
 ): Intake {
   requireCap(ctx, 'intake.record', 'record truck intake');
   const p = ctx.s.purchases.find((x) => x.id === i.purchaseId) ?? fail('not_found', `Purchase ${i.purchaseId} not found`);
@@ -106,7 +106,9 @@ export function recordIntake(
   const slipKey = `${p.supplierId}:${i.slip.trim().toUpperCase()}`;
   const dupe = ctx.s.intakes.find((x) => `${ctx.s.purchases.find((pp) => pp.id === x.purchaseId)?.supplierId}:${x.slip.toUpperCase()}` === slipKey);
   if (dupe) fail('duplicate', `Duplicate weighbridge slip ${i.slip} for this supplier — already used on ${dupe.id} (FR-009). No second receipt was posted.`);
-  if (!(i.evidence?.length ?? 0)) fail('validation', 'Attach the weighbridge slip photo reference (BR-004)');
+  const photos = (i.photos ?? []).filter((ph) => ph.dataUrl?.startsWith('data:image/'));
+  const evidence = i.evidence?.length ? i.evidence : photos.map((ph) => ph.name);
+  if (!evidence.length) fail('validation', 'Attach the weighbridge slip photo (BR-004)');
   const net = gross - tare;
   const bal = purchaseBalances(ctx.s, p);
   const allowance = Math.round((p.declaredQty * DEMO.overReceiptPct) / 100);
@@ -126,7 +128,8 @@ export function recordIntake(
     moisturePct: i.moisturePct ?? 0,
     foreignMatterPct: i.foreignMatterPct ?? 0,
     damagePct: i.damagePct ?? 0,
-    evidence: i.evidence ?? [],
+    evidence,
+    ...(photos.length ? { photos } : {}),
     status: 'under_inspection',
     makerId: ctx.actor.id,
     createdAt: ctx.at,

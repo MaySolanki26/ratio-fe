@@ -158,6 +158,12 @@ export interface Purchase {
   billMatch?: { status: 'matched' | 'disputed' | 'accepted_difference'; note?: string; by: string; at: string };
 }
 
+/** A photo attached as evidence (local prototype: a downscaled data URL kept in browser storage). */
+export interface EvidencePhoto {
+  name: string;
+  dataUrl: string;
+}
+
 export interface Intake {
   id: string;
   purchaseId: string;
@@ -171,6 +177,8 @@ export interface Intake {
   foreignMatterPct: number;
   damagePct: number;
   evidence: string[];
+  /** uploaded slip / truck photos; `evidence` keeps their file names */
+  photos?: EvidencePhoto[];
   status: 'under_inspection' | 'accepted' | 'partially_accepted' | 'rejected';
   accepted?: Grams;
   rejected?: Grams;

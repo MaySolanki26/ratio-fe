@@ -9,7 +9,7 @@ import { useAct, useR } from '../store';
 import { IntakeFlow, IntakePurchaseBars } from './_graphA';
 import { PageTabs, usePageTab } from './_uxA';
 import { wsBase } from '../../lib/routes';
-import { Details, FormButton, ImplNote, LotLink, Panel, Qty, RPage, Reason, Ref, Status, Table, Who, fmtTime, num, str, useCan, useFocusId } from '../ui';
+import { Details, FormButton, ImplNote, LotLink, Panel, PhotoStrip, Qty, RPage, Reason, Ref, Status, Table, Who, fmtTime, num, photosOf, str, useCan, useFocusId } from '../ui';
 
 export default function Intake() {
   const { s, db, actor } = useR();
@@ -120,13 +120,13 @@ export default function Intake() {
                               { key: 'moisturePct', label: 'Moisture', type: 'number', unit: '%', help: `Above ${DEMO.moistureDeductionAbovePct}% reduces the price, not the kilograms` },
                               { key: 'foreignMatterPct', label: 'Foreign matter', type: 'number', unit: '%' },
                               { key: 'damagePct', label: 'Damage', type: 'number', unit: '%' },
-                              { key: 'evidence', label: 'Slip / photo evidence reference', type: 'text', required: true, placeholder: 'e.g. slip-WB-55013.jpg' },
+                              { key: 'evidence', label: 'Weighbridge slip / truck photos', type: 'photos', max: 4, required: true, help: 'Photo of the slip is required; add the truck or load if useful. Kept in this browser only (demo).' },
                             ]}
                             onSubmit={(v, key) =>
                               run(
                                 'Record truck intake',
                                 (ctx) =>
-                                  recordIntake(ctx, { purchaseId: p.id, truck: str(v.truck), slip: str(v.slip), grossKg: num(v.grossKg), tareKg: num(v.tareKg), moisturePct: num(v.moisturePct), foreignMatterPct: num(v.foreignMatterPct), damagePct: num(v.damagePct), evidence: [str(v.evidence)].filter(Boolean) }),
+                                  recordIntake(ctx, { purchaseId: p.id, truck: str(v.truck), slip: str(v.slip), grossKg: num(v.grossKg), tareKg: num(v.tareKg), moisturePct: num(v.moisturePct), foreignMatterPct: num(v.foreignMatterPct), damagePct: num(v.damagePct), photos: photosOf(v.evidence) }),
                                 { key, success: (i) => `Intake ${i.id}: ${fmtKg(i.net)} held at gate for checker` },
                               )
                             }
@@ -166,7 +166,7 @@ export default function Intake() {
           <Panel title="Truck intakes" meta="Recorded by one person, checked by another">
             <Table
               cols={[
-                { key: 'tr', label: 'Truck', render: (i: IntakeRec) => (<>{i.truck}<div className="muted">slip {i.slip} · <LotLink id={i.lotId} /></div></>) },
+                { key: 'tr', label: 'Truck', render: (i: IntakeRec) => (<>{i.truck}<div className="muted">slip {i.slip} · <LotLink id={i.lotId} /></div>{i.photos?.length ? <PhotoStrip photos={i.photos} /> : null}</>) },
                 { key: 'net', label: 'Net (gross − tare)', num: true, render: (i) => (<><Qty g={i.net} strong /><div className="muted">{fmtKg(i.gross)} − {fmtKg(i.tare)}</div></>) },
                 { key: 'q', label: 'Quality', render: (i) => <Reason text={`Moisture ${i.moisturePct}% · foreign matter ${i.foreignMatterPct}% · damage ${i.damagePct}%${i.valueDeduction ? ` · price deduction ${fmtINR(i.valueDeduction)}` : ''}`} /> },
                 { key: 'acc', label: 'Accepted / rejected', num: true, render: (i) => (i.accepted !== undefined ? `${fmtKg(i.accepted)} / ${fmtKg(i.rejected ?? 0)}` : '—') },
@@ -191,6 +191,12 @@ export default function Intake() {
                               </InlineAlert>
                             )}
                             Truck {i.truck} · {i.lotId}. Accepted + rejected must equal the net weight.
+                            {i.photos?.length ? (
+                              <div className="rt-photo-check">
+                                <span className="muted small">Slip / truck photos from the gate — compare with the weights:</span>
+                                <PhotoStrip photos={i.photos} size={64} />
+                              </div>
+                            ) : null}
                           </>
                         }
                         initial={{ acceptKg: String(i.net / 1000), rejectKg: '0', godown: 'R1' }}

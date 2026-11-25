@@ -1681,3 +1681,98 @@ a.rt-fc-box:focus-visible {
     display: grid;
   }
 }
+
+/* ---------------------------------------------------------------- photo evidence (upload field + thumbnails) */
+.rt-photos {
+  display: grid;
+  gap: 8px;
+}
+.rt-photo-add {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  min-height: 56px;
+  border: 1.5px dashed var(--s-border-strong);
+  border-radius: var(--c-radius-control);
+  background: var(--s-sunken);
+  color: var(--s-text);
+  cursor: pointer;
+}
+.rt-photo-add svg {
+  grid-row: span 2;
+  color: var(--s-accent);
+}
+.rt-photo-add:hover {
+  border-color: var(--s-accent);
+  background: var(--s-hover);
+}
+.rt-photo-add:focus-within {
+  outline: 2px solid var(--s-focus);
+  outline-offset: 1px;
+}
+.rt-photo-add.is-busy {
+  opacity: 0.6;
+  cursor: progress;
+}
+.rt-photo-strip {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rt-photo-tile {
+  position: relative;
+}
+.rt-photo-thumb {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 1px solid var(--s-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--s-sunken);
+  cursor: zoom-in;
+}
+.rt-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.rt-photo-thumb:focus-visible,
+.rt-photo-remove:focus-visible {
+  outline: 2px solid var(--s-focus);
+  outline-offset: 1px;
+}
+.rt-photo-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--s-border);
+  border-radius: 50%;
+  background: var(--s-panel);
+  color: var(--s-text);
+  cursor: pointer;
+}
+.rt-photo-full {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  margin: 0 auto;
+  border-radius: var(--c-radius-control);
+}
+.rt-photo-check {
+  display: grid;
+  gap: 2px;
+  margin-top: 8px;
+}

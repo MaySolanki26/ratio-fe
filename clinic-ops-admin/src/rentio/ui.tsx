@@ -7,14 +7,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../components/primitives/Button';
 import { EmptyState, InlineAlert, StatusChip } from '../components/primitives/feedback';
 import { Icon } from '../components/primitives/Icon';
-import { Drawer, FormDialog } from '../components/primitives/overlay';
+import { Dialog, Drawer, FormDialog } from '../components/primitives/overlay';
 import { PageHeader } from '../components/shell/PageHeader';
 import { hasCap, ractor, userName } from '../domain/rentio/access';
 import { switchSession } from '../services/settings';
 import { orderStatus, type OrderStatusCode } from '../domain/rentio/commerce';
 import { ancestors, descendants, holdReasons, isExpired, lotHolds, stockRows } from '../domain/rentio/engine';
 import { canReadLot, scopedMovements, scopedPositions } from '../domain/rentio/scope';
-import type { Basis, Order, RentioState } from '../domain/rentio/types';
+import type { Basis, EvidencePhoto, Order, RentioState } from '../domain/rentio/types';
 import { fmtKg, type Grams } from '../domain/rentio/units';
 import { alertsFor, fmtLotQty } from '../domain/rentio/views';
 import { cx } from '../lib/format';
@@ -321,6 +321,8 @@ export type FieldSpec =
   | { key: string; label: string; type: 'select'; options: { value: string; label: string }[]; required?: boolean; help?: string }
   | { key: string; label: string; type: 'datetime'; help?: string; /** ISO bounds; shown by the picker */ min?: string; max?: string }
   | { key: string; label: string; type: 'checkbox'; help?: string }
+  /** image upload; the value is the JSON of EvidencePhoto[] ('' when none) — read it with photosOf() */
+  | { key: string; label: string; type: 'photos'; max?: number; required?: boolean; help?: string }
   | { key: string; label: string; type: 'readonly'; value: ReactNode; help?: string };
 
 export type FormValues = Record<string, string | boolean>;
@@ -450,6 +452,9 @@ function FieldInput({ f, value, onChange }: { f: FieldSpec; value: string | bool
     case 'readonly':
       input = <div className="field-readonly">{f.value}</div>;
       break;
+    case 'photos':
+      input = <PhotoInput id={id} max={f.max ?? 4} value={photosOf(value)} onChange={(p) => onChange(p.length ? JSON.stringify(p) : '')} />;
+      break;
     default:
       input = <input id={id} className="input" type="text" placeholder={'placeholder' in f ? f.placeholder : undefined} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />;
   }
@@ -482,6 +487,133 @@ export const num = (v: string | boolean | undefined) => {
   return Number.isFinite(n) ? n : 0;
 };
 export const str = (v: string | boolean | undefined) => String(v ?? '').trim();
+/** Photos chosen in a 'photos' field. */
+export const photosOf = (v: string | boolean | undefined): EvidencePhoto[] => {
+  if (typeof v !== 'string' || !v) return [];
+  try {
+    const p = JSON.parse(v) as unknown;
+    return Array.isArray(p) ? (p as EvidencePhoto[]) : [];
+  } catch {
+    return [];
+  }
+};
+
+// ---------------------------------------------------------------- photo evidence
+
+const PHOTO_MAX_PX = 1280;
+const readDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(file);
+  });
+/** Shrink a camera photo to at most 1280 px JPEG so it fits in browser storage; keeps the original where canvas is unavailable. */
+async function compressPhoto(file: File): Promise<string> {
+  const original = await readDataUrl(file);
+  const canvas = document.createElement('canvas');
+  let g: CanvasRenderingContext2D | null = null;
+  try {
+    g = canvas.getContext('2d');
+  } catch {
+    g = null;
+  }
+  if (!g) return original;
+  const ctx2d = g;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, PHOTO_MAX_PX / Math.max(img.width, img.height));
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      ctx2d.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const out = canvas.toDataURL('image/jpeg', 0.72);
+      resolve(out.length < original.length ? out : original);
+    };
+    img.onerror = () => resolve(original);
+    img.src = original;
+  });
+}
+
+/** Upload or take photos (camera on phones). Stays in this browser — a local prototype, not a document store. */
+function PhotoInput({ id, value, onChange, max }: { id: string; value: EvidencePhoto[]; onChange: (p: EvidencePhoto[]) => void; max: number }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const add = async (files: FileList | null) => {
+    const list = [...(files ?? [])];
+    if (!list.length) return;
+    setErr(null);
+    const images = list.filter((f) => f.type.startsWith('image/'));
+    if (images.length < list.length) setErr('Only image files can be attached.');
+    const room = max - value.length;
+    if (images.length > room) setErr(`Up to ${max} photos — ${images.length - room} not added.`);
+    setBusy(true);
+    try {
+      const added = await Promise.all(images.slice(0, Math.max(0, room)).map(async (f) => ({ name: f.name, dataUrl: await compressPhoto(f) })));
+      onChange([...value, ...added]);
+    } catch {
+      setErr('The photo could not be read. Try another file.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="rt-photos">
+      {value.length > 0 && <PhotoStrip photos={value} size={72} onRemove={(i) => onChange(value.filter((_, j) => j !== i))} />}
+      {value.length < max && (
+        <label className={cx('rt-photo-add', busy && 'is-busy')}>
+          <input
+            id={id}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            multiple
+            className="sr-only"
+            disabled={busy}
+            onChange={(e) => {
+              void add(e.target.files);
+              e.target.value = '';
+            }}
+          />
+          <Icon name="image-plus" size={18} />
+          <span>{busy ? 'Adding photo…' : value.length ? 'Add another photo' : 'Upload or take photo'}</span>
+          <span className="muted small">JPG / PNG · up to {max}</span>
+        </label>
+      )}
+      {err && <span className="field-help tone-text-danger">{err}</span>}
+    </div>
+  );
+}
+
+/** Thumbnails; a click opens the full photo. With onRemove each tile gets a remove button (form use). */
+export function PhotoStrip({ photos, size = 36, onRemove }: { photos: EvidencePhoto[]; size?: number; onRemove?: (i: number) => void }) {
+  const [open, setOpen] = useState<number | null>(null);
+  if (!photos.length) return null;
+  const shown = open === null ? null : photos[open];
+  return (
+    <>
+      <ul className="rt-photo-strip">
+        {photos.map((p, i) => (
+          <li key={`${p.name}-${i}`} className="rt-photo-tile" style={{ width: size, height: size }}>
+            <button type="button" className="rt-photo-thumb" onClick={() => setOpen(i)} aria-label={`View photo ${p.name}`}>
+              <img src={p.dataUrl} alt="" />
+            </button>
+            {onRemove && (
+              <button type="button" className="rt-photo-remove" onClick={() => onRemove(i)} aria-label={`Remove photo ${p.name}`}>
+                <Icon name="x" size={12} />
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      {shown && (
+        <Dialog open onClose={() => setOpen(null)} title={shown.name} size="lg">
+          <img className="rt-photo-full" src={shown.dataUrl} alt={shown.name} />
+        </Dialog>
+      )}
+    </>
+  );
+}
 
 // ---------------------------------------------------------------- lot drawer (traceability)
 

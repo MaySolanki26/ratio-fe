@@ -6,7 +6,7 @@ import { cx } from '../lib/format';
 import { pagePath } from '../lib/routes';
 import { can } from '../services/authz';
 import { useActor, useRevision } from '../services/hooks';
-import { demoUsers } from '../domain/clinic/pack';
+import { demoUsers } from '../domain/active';
 import { allRoles, canManageRoles, countPermissions, deleteRole, draftOf, emptyDraft, isBuiltIn, type MatrixCell, type MatrixGroup, PERMISSION_COLUMNS, permissionMatrix, type RoleDraft, saveRole } from '../services/roles';
 import { ServiceError } from '../services/types';
 import { Button } from '../components/primitives/Button';
@@ -66,7 +66,7 @@ export function RolesList() {
         label: r.label,
         description: r.description || '',
         kind: isBuiltIn(r.id) ? 'Built-in' : 'Custom',
-        users: demoUsers.filter((u) => u.roleId === r.id).length,
+        users: demoUsers().filter((u) => u.roleId === r.id).length,
         permissions: countPermissions(draftOf(r)),
         version: 1,
       }) as unknown as RecordData,

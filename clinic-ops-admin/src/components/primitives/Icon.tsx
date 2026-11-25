@@ -203,6 +203,9 @@ const ICONS: Record<string, LucideIcon> = {
   trash: Trash2,
   users: Users,
   x: X,
+  // Rentio module icons
+  tags: Tags,
+  phone: Phone,
 };
 
 export function Icon({ name, size = 16, className }: { name: string; size?: number; className?: string }) {

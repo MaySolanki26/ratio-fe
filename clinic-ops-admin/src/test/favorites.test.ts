@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { actorFor } from '../services/authz';
 import { __setDb, createDb } from '../services/db';
 import { getSettings, toggleFavorite } from '../services/settings';
+import { useDomain } from '../domain/active';
+import { clinicDomain } from '../domain/clinic/domain';
+
+// These tests exercise the shared platform with the original clinic example pack.
+useDomain(clinicDomain);
 
 describe('sidebar favourites', () => {
   beforeEach(() => __setDb(createDb(new Date('2026-10-16T09:00:00'))));

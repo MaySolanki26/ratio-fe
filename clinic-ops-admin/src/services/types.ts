@@ -150,6 +150,8 @@ export interface Db {
   formDrafts: Record<string, Record<string, unknown>>;
   /** Roles created in Roles & access (built-in roles come from the domain pack). */
   customRoles?: RoleDefinition[];
+  /** Rentio transaction ledger and workflow state (Rentio domain only). */
+  rentio?: import('../domain/rentio/types').RentioState;
 }
 
 export type ServiceErrorCode = 'forbidden' | 'validation' | 'conflict' | 'version_conflict' | 'not_found' | 'invalid_state';

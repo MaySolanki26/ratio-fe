@@ -23,7 +23,7 @@ function applyHiddenPolicy(res: ResourceDefinition, values: Record<string, unkno
     if (f.clearWhenHidden && !isVisible(f, values)) values[f.key] = null;
   });
 }
-import { demoUsers } from '../domain/clinic/pack';
+import { demoUsers } from '../domain/active';
 
 export interface Projected {
   record: RecordData;
@@ -247,7 +247,7 @@ function scheduleGuard(d: Db, actor: Actor, candidate: Record<string, unknown>, 
 }
 
 function staffUser(staffId: unknown, workspaceId: string) {
-  return demoUsers.find((u) => u.staffIds[workspaceId] === staffId);
+  return demoUsers().find((u) => u.staffIds[workspaceId] === staffId);
 }
 
 export interface WriteOptions {

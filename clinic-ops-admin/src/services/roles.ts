@@ -4,7 +4,7 @@
  * in this browser. A production build must store and enforce roles on the server.
  */
 import type { PermissionColumn, ResourcePermission, RoleDefinition } from '../metadata/types';
-import { clinicPack } from '../domain/clinic/pack';
+import { domain } from '../domain/active';
 import { uid } from '../lib/ids';
 import { type Actor, can } from './authz';
 import { commit, getDb } from './db';
@@ -59,8 +59,8 @@ const capCell = (capability: string, label: string): MatrixCell => ({
 /** Module → rows (record types + extra capability rows), in navigation order. */
 export function permissionMatrix(): MatrixGroup[] {
   const resources = allResources();
-  const extra = clinicPack.capabilityRows ?? [];
-  return clinicPack.modules
+  const extra = domain().pack.capabilityRows ?? [];
+  return domain().pack.modules
     .map((m) => {
       const rows: MatrixRow[] = [];
       for (const key of m.resources) {
@@ -103,7 +103,7 @@ export function countPermissions(d: RoleDraft) {
   return permissionMatrix().reduce((n, g) => n + g.rows.reduce((m, r) => m + Object.values(r.cells).filter((c) => c!.get(d)).length, 0), 0);
 }
 
-export const builtInRoles = () => clinicPack.roles;
+export const builtInRoles = () => domain().pack.roles;
 export const customRoles = () => getDb().customRoles ?? [];
 export const allRoles = () => [...builtInRoles(), ...customRoles()];
 export const isBuiltIn = (id: string) => builtInRoles().some((r) => r.id === id);

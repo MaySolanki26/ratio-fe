@@ -2,7 +2,7 @@
  * Metadata Registry: effective (published) resource and master definitions.
  * Pack definitions + published Configuration Studio overlays.
  */
-import { clinicPack, demoUsers, workspaces } from '../domain/clinic/pack';
+import { demoUsers, domain, workspaces } from '../domain/active';
 import type { FieldDefinition, MasterDefinition, MasterValue, ResourceDefinition } from '../metadata/types';
 import { getDb } from './db';
 
@@ -11,13 +11,13 @@ const resourceCache = new Map<string, { key: string; def: ResourceDefinition }>(
 export function getMaster(key: string): MasterDefinition {
   const overlay = getDb().config.masters[key];
   if (overlay) return overlay;
-  const m = clinicPack.masters.find((x) => x.key === key);
+  const m = domain().pack.masters.find((x) => x.key === key);
   if (!m) throw new Error(`Unknown master ${key}`);
   return m;
 }
 
 export function allMasters(): MasterDefinition[] {
-  return clinicPack.masters.map((m) => getMaster(m.key));
+  return domain().pack.masters.map((m) => getMaster(m.key));
 }
 
 export function masterValue(masterKey: string, valueKey: unknown): MasterValue | undefined {
@@ -36,7 +36,7 @@ export function activeMasterValues(masterKey: string, parent?: unknown): MasterV
 }
 
 export function getResource(key: string): ResourceDefinition {
-  const base = clinicPack.resources.find((r) => r.key === key);
+  const base = domain().pack.resources.find((r) => r.key === key);
   if (!base) throw new Error(`Unknown resource ${key}`);
   const { customFields, resourceVersions } = getDb().config;
   const custom = customFields[key] ?? [];
@@ -63,17 +63,17 @@ export function getResource(key: string): ResourceDefinition {
 }
 
 export function allResources(): ResourceDefinition[] {
-  return clinicPack.resources.map((r) => getResource(r.key));
+  return domain().pack.resources.map((r) => getResource(r.key));
 }
 
 export function getField(resource: ResourceDefinition, key: string): FieldDefinition | undefined {
   return resource.fields.find((f) => f.key === key);
 }
 
-export const getUser = (id: string) => demoUsers.find((u) => u.id === id);
+export const getUser = (id: string) => demoUsers().find((u) => u.id === id);
 export const getRole = (id: string) => {
-  const role = clinicPack.roles.find((r) => r.id === id) ?? getDb().customRoles?.find((r) => r.id === id);
+  const role = domain().pack.roles.find((r) => r.id === id) ?? getDb().customRoles?.find((r) => r.id === id);
   if (!role) throw new Error(`Unknown role ${id}`);
   return role;
 };
-export const getWorkspace = (idOrSlug: string) => workspaces.find((w) => w.id === idOrSlug || w.slug === idOrSlug);
+export const getWorkspace = (idOrSlug: string) => workspaces().find((w) => w.id === idOrSlug || w.slug === idOrSlug);

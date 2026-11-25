@@ -1,0 +1,233 @@
+{
+  "at": "2026-11-24T20:12:28.238Z",
+  "profile": "isolated disposable Chrome profile",
+  "checks": [
+    {
+      "name": "fresh isolated profile seeds the demo snapshot",
+      "ok": true,
+      "detail": "demo"
+    },
+    {
+      "name": "owner overview leads with decisions",
+      "ok": true,
+      "detail": "Plant 1 · 25 Nov, 01:41 IST · figures update as staff post work.\n\nNeeds your decision\n1\nSO-0003 for Sahyadri Agencies (fictional): exposure ₹7,92,000 exceeds limit ₹6,00,000\ncritical\n₹1,92,000\nOwner: "
+    },
+    {
+      "name": "owner overview has no requirement codes in normal copy",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "stock flow strip Raw → Processing → Finished → Transit → Distributors",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "decision action opens exact record",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "approvals page highlights the decided record",
+      "ok": true,
+      "detail": "SO-0003 for Sahyadri Agencies (fictional): exposure ₹7,92,000 exceeds limit ₹6,00,000\nCredit limit enforced; override needs authorized approval\n\t₹1,92,000\tKiran Shah · 24 Nov, 10:00\tOwner (beyond delegated limit)\t\npending\n\t\nApprove\nReject"
+    },
+    {
+      "name": "delayed run shows \"ETA needs update\" (no fake forecast)",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "open ETA form",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "named ETA revision shown",
+      "ok": true,
+      "detail": "New ETA saved · TX-00123"
+    },
+    {
+      "name": "worker lands on My work with one next action: Receive RT-003/G1",
+      "ok": true,
+      "detail": "Anil Kumar · Stage Owner · Own stages: OIL, COND, DRY\n\nNext action\nReceive RT-003/G1\nOiling · issued by Suresh Yadav · 2,970 kg\nReceive"
+    },
+    {
+      "name": "receipt form shows issued / already received / outstanding / receive now / remaining",
+      "ok": true,
+      "detail": "Receive RT-003/G1 At Oiling\nOriginally issued\n2,970 kg\nAlready received\n0 kg\nOutstanding\n2,970 kg\nReceive now\n2,970 kg\nLeft outstanding after this\n0 kg\nReceive now\n*\n(kg — weigh or count what physically arrived)\nFrom RT-003/G1 · sent by Suresh Yadav on 25 Nov, 00:11 · Carried basis. Anything not rec"
+    },
+    {
+      "name": "over-receipt refused, input preserved",
+      "ok": true,
+      "detail": "kept=3000"
+    },
+    {
+      "name": "receipt posted",
+      "ok": true,
+      "detail": "Received 3,000 kg exceeds the outstanding 2,970 kg. Excess must be recorded as unidentified stock for investigation, not added to this handover. | Received 2,970 kg — handover complete · TX-00124"
+    },
+    {
+      "name": "next action is Start",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "next action is Record output",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "output preview balanced",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "output posted",
+      "ok": true,
+      "detail": "Output posted: RT-003/OIL · TX-00126"
+    },
+    {
+      "name": "next action is Issue",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "issued onward",
+      "ok": true,
+      "detail": "Issued to COND (HO-0023) · TX-00127"
+    },
+    {
+      "name": "conditioning receipt now waiting (handover continues)",
+      "ok": true,
+      "detail": "Anil Kumar · Stage Owner · Own stages: OIL, COND, DRY\n\nNext action\nReceive RT-003/OIL\nSeeping · issued by Anil Kumar · 2,976 kg\nReceive"
+    },
+    {
+      "name": "oil stores reduced by RT-001 20 kg + RT-003 6 kg",
+      "ok": true,
+      "detail": "26000"
+    },
+    {
+      "name": "keyboard: Tab reaches next action, Enter opens with focus inside, Esc closes and returns focus",
+      "ok": true,
+      "detail": "tabs=24 inside=true back=true"
+    },
+    {
+      "name": "godown shows stacks reconciled to F1 total",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "inventory search works and shows no distributor stock for godown",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "D01 cannot open D02 via ?d=D02",
+      "ok": true,
+      "detail": "Stock reduces once — when a retailer delivery is confirmed or an outside sale is recorded.\n\nThat record is not in your area or no longer open.\nYour distributor\nas of 25 Nov, 01:42\nDistributor\tName\tIn "
+    },
+    {
+      "name": "D01 blocked from Inventory by URL",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "D01 blocked from Godowns by URL",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "D01 alerts contain nothing about D02",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "D02 sees its own short receipt, not D01",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "HR lands on My work, not the owner overview",
+      "ok": true,
+      "detail": "/o/rentio/w/plant1/home/my-work"
+    },
+    {
+      "name": "empty state for a role with no work",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "reset to starting data set (isolated profile only)",
+      "ok": true,
+      "detail": "start"
+    },
+    {
+      "name": "all 17 RT-001 steps executed through the UI runner",
+      "ok": true,
+      "detail": "17"
+    },
+    {
+      "name": "independent RT-001 reconciliation from raw ledger",
+      "ok": true,
+      "detail": "{\"input\":10000,\"oil\":20,\"factory\":4500,\"distributor\":3000,\"retailer\":1000,\"husk\":650,\"churi\":175,\"huskUsed\":200,\"churiOut\":100,\"rejectsLoss\":395,\"other\":0,\"total\":10020}"
+    },
+    {
+      "name": "exception opening stock not in RT-001 family",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Over-issue stock: rejected without partial change",
+      "ok": true,
+      "detail": "Presenter areaThese controls change the demo data in this browser. Staff never need this page. | How to run itExecute each step yourself from the role screens (switch user in the account menu — e.g. Kiran for intake, Mee"
+    },
+    {
+      "name": "Self-approve a request: rejected without partial change",
+      "ok": true,
+      "detail": "Presenter areaThese controls change the demo data in this browser. Staff never need this page. | How to run itExecute each step yourself from the role screens (switch user in the account menu — e.g. Kiran for intake, Mee"
+    },
+    {
+      "name": "Dispatch held stock: rejected without partial change",
+      "ok": true,
+      "detail": "Presenter areaThese controls change the demo data in this browser. Staff never need this page. | How to run itExecute each step yourself from the role screens (switch user in the account menu — e.g. Kiran for intake, Mee"
+    },
+    {
+      "name": "Simulate storage failure: rejected without partial change",
+      "ok": true,
+      "detail": "Local storage is unavailable (Simulated storage failure). Changes will be lost on reload. | Presenter areaThese controls change the demo data in this browser. Staff never need this page. | How to run itExecute each step "
+    },
+    {
+      "name": "Repeated submission: one effect only",
+      "ok": true,
+      "detail": "136->137"
+    }
+  ],
+  "consoleErrors": [],
+  "screenshots": [
+    "01-owner-desktop-demo-owner-overview.png",
+    "02-owner-laptop-demo-owner-overview.png",
+    "03-owner-phone-demo-owner-overview.png",
+    "04-owner-laptop-demo-decision-exact-source.png",
+    "05-factory-head-laptop-demo-stage-board-eta-needed.png",
+    "06-stage-owner-suresh-laptop-demo-stage-cleaning-late.png",
+    "07-stage-owner-anil-phone-demo-mywork-next-receive.png",
+    "08-stage-owner-anil-phone-demo-receive-error-preserved.png",
+    "09-stage-owner-anil-desktop-demo-output-balanced-preview.png",
+    "10-stage-owner-anil-desktop-demo-mywork-after-manual-cycle.png",
+    "11-godown-ravi-laptop-demo-godown-stacks.png",
+    "12-godown-ravi-laptop-demo-inventory-search-A1.png",
+    "13-qc-meera-laptop-demo-holds.png",
+    "14-qc-meera-laptop-demo-mywork.png",
+    "15-distributor-D01-phone-demo-own-stock.png",
+    "16-distributor-D01-desktop-demo-inventory-url-blocked.png",
+    "17-distributor-D02-desktop-demo-own-stock.png",
+    "18-salesman-phone-demo-salesman-app.png",
+    "19-accounts-laptop-demo-tally.png",
+    "20-accounts-laptop-demo-period-close-audit.png",
+    "21-hr-laptop-demo-attendance.png",
+    "22-admin-laptop-demo-mywork-empty.png",
+    "23-owner-desktop-start→completed-rt001-trace.png",
+    "24-owner-desktop-completed-safety-controls.png"
+  ]
+}

@@ -4,7 +4,7 @@
  * - Completing the task or reading the notification never decides the approval.
  * - Separation of duties: a requester cannot decide their own request.
  */
-import { demoUsers } from '../domain/clinic/pack';
+import { demoUsers } from '../domain/active';
 import { formatMoney } from '../lib/format';
 import { uid } from '../lib/ids';
 import { todayKey, addDays } from '../lib/dates';
@@ -37,7 +37,7 @@ export function requestWriteOff(actor: Actor, invoiceId: string, reason: string)
     const balance = Number(withComputed(res, inv).balance);
     const correlationId = uid('cor');
     const approvalId = `APR-${(d.counters.approvals = (d.counters.approvals ?? 1000) + 1)}`;
-    const manager = demoUsers.find((u) => u.roleId === 'practice_manager')!;
+    const manager = demoUsers().find((u) => u.roleId === 'practice_manager')!;
     const taskId = (() => {
       const nums = d.records.tasks.filter((t) => t.workspaceId === actor.workspaceId).map((t) => Number(t.id.split('-')[1]));
       return `T-${Math.max(actor.workspaceId === 'hillcrest' ? 2000 : 1000, ...nums) + 1}`;
@@ -75,7 +75,7 @@ export function requestWriteOff(actor: Actor, invoiceId: string, reason: string)
     });
     appendAudit(d, actor, { action: 'approval.requested', resource: 'invoices', recordId: invoiceId, summary: `Requested write-off of ${formatMoney(balance)} (${approvalId})`, correlationId });
     emitEvent(d, actor, { eventType: 'approval.requested', recordId: invoiceId, correlationId, payload: { approvalId, type: approval.type } });
-    demoUsers
+    demoUsers()
       .filter((u) => actorFor(u.id, actor.workspaceId).role.capabilities.includes('approve.writeoff') && u.id !== actor.user.id)
       .forEach((u) => notify(d, { userId: u.id, workspaceId: actor.workspaceId, kind: 'approval_request', title: `Write-off approval requested for ${invoiceId}`, link: { page: 'inbox' } }));
     return approval;

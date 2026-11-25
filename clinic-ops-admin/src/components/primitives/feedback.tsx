@@ -157,7 +157,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const push = useCallback((message: string, tone: Toast['tone'] = 'success') => {
     const id = Date.now() + Math.random();
-    setToasts((t) => [...t.slice(-3), { id, tone, message }]);
+    // a success means the earlier failed attempt was corrected: its error/warning is obsolete
+    setToasts((t) => [...(tone === 'success' ? t.filter((x) => x.tone !== 'danger' && x.tone !== 'warning') : t).slice(-3), { id, tone, message }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4500);
   }, []);
   return (

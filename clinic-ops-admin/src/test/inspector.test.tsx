@@ -7,6 +7,11 @@ import { __setDb, createDb, getDb } from '../services/db';
 import { getCommentDraft } from '../services/collab';
 import { actorFor } from '../services/authz';
 import '../domain/clinic/extensions';
+import { useDomain } from '../domain/active';
+import { clinicDomain } from '../domain/clinic/domain';
+
+// These tests exercise the shared platform with the original clinic example pack.
+useDomain(clinicDomain);
 
 beforeEach(() => {
   __setDb(createDb(new Date()));

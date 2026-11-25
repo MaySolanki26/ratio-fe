@@ -10,6 +10,11 @@ import { getMaster, getResource } from '../services/registry';
 import { createRecord, getRecord, queryRecords, recordPayment, transitionRecord, updateRecord, withComputed } from '../services/runtime';
 import { ServiceError } from '../services/types';
 import { decideApproval, requestWriteOff } from '../services/workflow';
+import { useDomain } from '../domain/active';
+import { clinicDomain } from '../domain/clinic/domain';
+
+// These tests exercise the shared platform with the original clinic example pack.
+useDomain(clinicDomain);
 
 const manager = () => actorFor('u_morgan', 'riverside');
 const frontDesk = () => actorFor('u_jordan', 'riverside');

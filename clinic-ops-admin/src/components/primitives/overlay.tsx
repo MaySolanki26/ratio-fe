@@ -71,13 +71,28 @@ export function useLayer(open: boolean, onClose: () => void) {
 /** True when any overlay layer (dialog, drawer, popover) is open. */
 export const hasOpenLayer = () => stack.length > 0;
 
+// Last focused element outside any dialog — the control that opened the topmost layer.
+let lastOutside: HTMLElement | null = null;
+if (typeof document !== 'undefined')
+  document.addEventListener('focusin', (e) => {
+    const t = e.target as HTMLElement | null;
+    if (t && !t.closest?.('[role="dialog"],[role="alertdialog"]')) lastOutside = t;
+  });
+
 /** Save focus on open; restore it to the invoking control on close. */
 export function useFocusReturn(open: boolean) {
   useEffect(() => {
     if (!open) return;
-    const prev = document.activeElement as HTMLElement | null;
+    const active = document.activeElement as HTMLElement | null;
+    const prev = active && !active.closest('[role="dialog"],[role="alertdialog"]') && active !== document.body ? active : lastOutside;
     return () => {
-      if (prev && document.contains(prev)) setTimeout(() => prev.focus(), 0);
+      if (!prev || !document.contains(prev)) return;
+      setTimeout(() => {
+        // a still-open layer keeps focus (StrictMode re-runs effects; nested layers close one at a time)
+        const now = document.activeElement as HTMLElement | null;
+        if (now && now !== document.body && now.closest('[role="dialog"],[role="alertdialog"]')) return;
+        prev.focus();
+      }, 0);
     };
   }, [open]);
 }
@@ -130,8 +145,9 @@ export function Dialog({ open, onClose, title, description, children, footer, si
   const descId = useId();
   useLayer(open, onClose);
   useFocusReturn(open);
-  useFocusTrap(ref, open);
   const presence = usePresence(open);
+  // trap once the panel is actually mounted (it mounts after the open-animation presence check)
+  useFocusTrap(ref, open && presence.mounted);
   if (!presence.mounted) return null;
   return createPortal(
     <div className={cx('overlay-scrim', presence.closing && 'is-closing')} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
@@ -245,8 +261,9 @@ export function Drawer({
   const titleId = useId();
   useLayer(open, onClose);
   useFocusReturn(open);
-  useFocusTrap(ref, open);
   const presence = usePresence(open);
+  // trap once the panel is actually mounted (it mounts after the open-animation presence check)
+  useFocusTrap(ref, open && presence.mounted);
   if (!presence.mounted) return null;
   return createPortal(
     <div className={cx('overlay-scrim overlay-scrim-drawer', presence.closing && 'is-closing')} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>

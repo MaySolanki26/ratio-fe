@@ -1,0 +1,136 @@
+import { useState } from 'react';
+import { Button } from '../../components/primitives/Button';
+import { InlineAlert, StatusChip } from '../../components/primitives/feedback';
+import { userName } from '../../domain/rentio/access';
+import { acknowledgeAlert } from '../../domain/rentio/people';
+import { readScope } from '../../domain/rentio/scope';
+import { alertsFor, ctaFor, isAcked, type Alert } from '../../domain/rentio/views';
+import { useAct, useR } from '../store';
+import { Details, ImplNote, Kpi, KpiRow, PageLink, Panel, Reason, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
+
+const SEVERITIES: Alert['severity'][] = ['critical', 'high', 'medium', 'low'];
+const FAMILIES: { id: Alert['family']; label: string }[] = [
+  { id: 'decision', label: 'Owner decisions' },
+  { id: 'delivery', label: 'Deliveries' },
+  { id: 'production', label: 'Production' },
+  { id: 'stock', label: 'Stock & quality' },
+  { id: 'money', label: 'Money' },
+  { id: 'people', label: 'People' },
+];
+
+export default function Alerts() {
+  const { db, s, actor, now } = useR();
+  const run = useAct();
+  const focus = useFocusId();
+  const [sev, setSev] = useState<string>('');
+  const [fam, setFam] = useState<string>('');
+  // read scope applies to every role (owner/accounts see the whole network through the same selector)
+  const all = alertsFor(db, actor, now);
+  const list = all.filter((a) => (!sev || a.severity === sev) && (!fam || a.family === fam));
+  const failures = readScope(actor).factory ? s.failures : s.failures.filter((f) => f.actorId === actor.id);
+  const focused = focus ? all.find((a) => a.sourceId === focus) : undefined;
+
+  return (
+    <RPage title="Alerts & exceptions" description="Open exceptions in your area, each with a named owner and a direct action.">
+      {focus && !focused && <InlineAlert tone="info">That exception is resolved or not in your area of work.</InlineAlert>}
+      <KpiRow>
+        {SEVERITIES.map((x) => (
+          <Kpi key={x} label={x[0].toUpperCase() + x.slice(1)} value={all.filter((a) => a.severity === x).length} tone={x === 'critical' || x === 'high' ? 'danger' : x === 'medium' ? 'warning' : undefined} />
+        ))}
+        <Kpi label="Escalated" value={all.filter((a) => a.escalation > 0).length} tone={all.some((a) => a.escalation > 0) ? 'warning' : undefined} />
+      </KpiRow>
+      <Panel
+        title="Open alerts"
+        meta={`${list.length} of ${all.length} · as of ${fmtTime(now)} IST`}
+        actions={
+          <div className="rt-row">
+            <select className="input" aria-label="Severity" value={sev} onChange={(e) => setSev(e.target.value)}>
+              <option value="">All severities</option>
+              {SEVERITIES.map((x) => (
+                <option key={x}>{x}</option>
+              ))}
+            </select>
+            <select className="input" aria-label="Type" value={fam} onChange={(e) => setFam(e.target.value)}>
+              <option value="">All types</option>
+              {FAMILIES.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
+      >
+        <Table
+          rows={list}
+          rowKey={(a) => a.sourceId}
+          focus={focus}
+          empty="No open alerts in your area."
+          cols={[
+            { key: 's', label: 'Severity', render: (a) => <Status s={a.severity} /> },
+            {
+              key: 'w',
+              label: 'What happened',
+              render: (a) => (
+                <>
+                  <div className="rt-brief-title">{a.title}</div>
+                  <div className="rt-brief-detail">
+                    <Reason text={a.detail} />
+                  </div>
+                </>
+              ),
+            },
+            { key: 'q', label: 'Qty / value', num: true, render: (a) => a.qty ?? '—' },
+            {
+              key: 'o',
+              label: 'Who acts',
+              render: (a) => (
+                <>
+                  <div>{a.owner}</div>
+                  {a.escalation > 0 && a.escalatedTo && <StatusChip label={`Escalated to ${userName(a.escalatedTo)}`} tone={a.escalation === 2 ? 'danger' : 'warning'} />}
+                </>
+              ),
+            },
+            { key: 't', label: 'Due', render: (a) => (a.due ? fmtTime(a.due) : '—') },
+            { key: 'l', label: 'Action', render: (a) => <PageLink to={a.link}>{ctaFor(a, actor) === a.action ? a.action : `Review (${a.nextStep})`}</PageLink> },
+            {
+              key: 'k',
+              label: 'Acknowledged',
+              render: (a) => {
+                const acks = isAcked(s, a.key);
+                const mine = acks.some((x) => x.by === actor.id);
+                return (
+                  <div className="rt-row">
+                    {acks.length > 0 && <span className="rt-brief-detail">{acks.map((x) => userName(x.by)).join(', ')}</span>}
+                    {!mine && (
+                      <Button size="compact" onClick={() => run(`Acknowledge: ${a.title}`, (ctx) => acknowledgeAlert(ctx, a.key), { success: () => 'Acknowledged — still open until the cause is fixed' })}>
+                        Acknowledge
+                      </Button>
+                    )}
+                  </div>
+                );
+              },
+            },
+          ]}
+        />
+        <p className="muted">Acknowledging records who is acting. It does not change stock, approve anything or close the alert.</p>
+      </Panel>
+      <Details summary={`Blocked attempts (${failures.length})`}>
+        <Table
+          rows={failures}
+          rowKey={(f) => f.id}
+          empty="No blocked attempts recorded."
+          cols={[
+            { key: 'at', label: 'Time (IST)', render: (f) => fmtTime(f.at) },
+            { key: 'by', label: 'User', render: (f) => userName(f.actorId) },
+            { key: 'a', label: 'Attempted', render: (f) => f.action },
+            { key: 'r', label: 'Why blocked', render: (f) => <Reason text={f.reason} /> },
+          ]}
+        />
+      </Details>
+      <ImplNote>
+        Control Tower and alerts (M13): FR-075 assigned alerts with timed escalation (unresolved past due → Factory Head or functional lead; twice the window → Owner; season mode shortens the window), FR-113 ranking, FR-076/077. Alerts are filtered by the actor's read scope (scope.ts) before display.
+      </ImplNote>
+    </RPage>
+  );
+}

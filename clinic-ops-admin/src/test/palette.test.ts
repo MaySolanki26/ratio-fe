@@ -3,6 +3,11 @@ import { applyPalette, contrast, derivePalette, findPalette, PRESET_PALETTES } f
 import { actorFor } from '../services/authz';
 import { __setDb, createDb } from '../services/db';
 import { deleteCustomPalette, getSettings, saveCustomPalette } from '../services/settings';
+import { useDomain } from '../domain/active';
+import { clinicDomain } from '../domain/clinic/domain';
+
+// These tests exercise the shared platform with the original clinic example pack.
+useDomain(clinicDomain);
 
 describe('theme changer', () => {
   beforeEach(() => __setDb(createDb(new Date('2026-10-16T09:00:00'))));

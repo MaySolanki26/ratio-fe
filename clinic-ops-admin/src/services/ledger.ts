@@ -2,7 +2,7 @@
  * Audit Ledger, simulated Event Outbox and Notification Service writers.
  * Each owns its own collection; none writes another domain's state.
  */
-import { organization } from '../domain/clinic/pack';
+import { organization } from '../domain/active';
 import { uid } from '../lib/ids';
 import type { Actor } from './authz';
 import type { AppNotification, AuditEntry, Db, DomainEvent } from './types';
@@ -28,7 +28,7 @@ export function emitEvent(
   const ev: DomainEvent = {
     eventId: uid('evt'),
     eventVersion: 1,
-    tenantId: organization.id,
+    tenantId: organization().id,
     workspaceId: actor.workspaceId,
     actorId: actor.user.id,
     actorType: 'user',

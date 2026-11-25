@@ -1,7 +1,7 @@
-import { organization } from '../domain/clinic/pack';
+import { organization } from '../domain/active';
 import { getResource } from '../services/registry';
 
-export const wsBase = (ws: string) => `/o/${organization.slug}/w/${ws}`;
+export const wsBase = (ws: string) => `/o/${organization().slug}/w/${ws}`;
 
 export function resourcePath(ws: string, resKey: string, params: Record<string, string | undefined> = {}) {
   const res = getResource(resKey);

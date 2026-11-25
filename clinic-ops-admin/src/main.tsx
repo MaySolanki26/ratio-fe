@@ -5,7 +5,7 @@ import '@fontsource-variable/geist';
 import './tokens/tokens.css';
 import './styles/app.css';
 import './styles/dashboard.css';
-import './domain/clinic/extensions';
+import './styles/rentio.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

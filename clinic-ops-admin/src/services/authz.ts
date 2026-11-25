@@ -3,9 +3,10 @@
  * model of the policy — NOT a security boundary. A live deployment must
  * re-evaluate every decision on the server (deny by default).
  */
-import type { DemoUser } from '../domain/clinic/pack';
+import type { DemoUser } from '../domain/active';
 import type { FieldAccess, FieldDefinition, RecordData, ResourceDefinition, ResourcePermission, RoleDefinition } from '../metadata/types';
 import { getDb } from './db';
+import { domain } from '../domain/active';
 import { getRole, getUser } from './registry';
 
 export interface Actor {
@@ -23,7 +24,7 @@ export function currentActor(): Actor {
 }
 
 export function actorFor(userId: string, workspaceId: string): Actor {
-  const user = getUser(userId) ?? getUser('u_morgan')!;
+  const user = getUser(userId) ?? getUser(domain().defaultSession.userId)!;
   return { user, role: getRole(user.roleId), workspaceId, staffId: user.staffIds[workspaceId] };
 }
 

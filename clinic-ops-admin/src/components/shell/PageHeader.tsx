@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { clinicModules } from '../../domain/clinic/pack';
+import { domain, modules } from '../../domain/active';
 import { createPortal } from 'react-dom';
 import { InfoTip } from '../primitives/InfoTip';
 
@@ -19,10 +19,10 @@ export function PageHeader({ title, description, actions, onBack, backLabel }: {
   // Page path (owner rules 71/73): shown only INSIDE something — the previous page links back; list pages show just the title
   const { pathname } = useLocation();
   const parts = pathname.split('/');
-  const mod = clinicModules.find((m) => m.id === parts[5] && m.id !== 'home');
+  const mod = modules().find((m) => m.id === parts[5] && m.id !== 'home');
   useLayoutEffect(() => setSlot(document.getElementById(TOPBAR_TITLE_SLOT)), []);
   useEffect(() => {
-    document.title = `${title} · Clinic Operations Admin`;
+    document.title = `${title} · ${domain().productName}`;
   }, [title]);
   return (
     <>

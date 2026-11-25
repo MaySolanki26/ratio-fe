@@ -1,14 +1,14 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
-import { organization } from './domain/clinic/pack';
 import { wsBase } from './lib/routes';
 import { getDb } from './services/db';
 import { useActor } from './services/hooks';
 import { getWorkspace } from './services/registry';
 import { switchSession } from './services/settings';
-import { clinicPack } from './domain/clinic/pack';
+import { domain, organization } from './domain/active';
 import { AppShell } from './components/shell/AppShell';
-import { ErrorState, ToastProvider } from './components/primitives/feedback';
+import { ErrorState, NoAccess, ToastProvider } from './components/primitives/feedback';
+import { actorFor, can } from './services/authz';
 import { TooltipLayer } from './components/primitives/TooltipLayer';
 import { ConfirmHost } from './components/primitives/overlay';
 import { DashboardPage } from './pages/DashboardPage';
@@ -16,6 +16,7 @@ import { RecordPage, ResourcePage } from './pages/ResourcePage';
 import { FullPageFormPage, InboxPage, MyWorkRedirect, SchedulePage } from './pages/WorkPages';
 import { AccessPage, AuditPage, EventsPage, SettingsPage, StudioPage } from './pages/AdminPages';
 import { RolePage } from './pages/RolesPage';
+import { RENTIO_PAGES, RentioDashboard } from './rentio/pages';
 
 function NotFound({ message }: { message?: string }) {
   const actor = useActor();
@@ -33,7 +34,7 @@ function NotFound({ message }: { message?: string }) {
 function WorkspaceGate() {
   const { org, ws } = useParams();
   const workspace = ws ? getWorkspace(ws) : undefined;
-  const valid = org === organization.slug && !!workspace;
+  const valid = org === organization().slug && !!workspace;
   const session = getDb().session;
   useEffect(() => {
     if (valid && workspace && session.workspaceId !== workspace.id) switchSession(session.userId, workspace.id);
@@ -41,7 +42,7 @@ function WorkspaceGate() {
   if (!valid) {
     return (
       <AppShell>
-        <NotFound message="This organization or clinic workspace does not exist, or you are not a member." />
+        <NotFound message="This organization or workspace does not exist, or you are not a member." />
       </AppShell>
     );
   }
@@ -49,7 +50,7 @@ function WorkspaceGate() {
   return (
     <AppShell>
       <Routes>
-        <Route path="dashboard" element={<DashboardPage />} />
+        <Route path="dashboard" element={domain().id === 'rentio' ? <RentioDashboard /> : <DashboardPage />} />
         <Route path="scheduling/schedule" element={<SchedulePage />} />
         <Route path="work/inbox" element={<InboxPage />} />
         <Route path="admin/studio" element={<StudioPage />} />
@@ -71,7 +72,22 @@ function WorkspaceGate() {
 
 function ResourceRoute({ kind }: { kind: 'list' | 'new' | 'edit' | 'record' }) {
   const { module, resource } = useParams();
-  const res = clinicPack.resources.find((r) => r.key === resource);
+  const actor = useActor();
+  const Page = domain().id === 'rentio' && kind === 'list' ? RENTIO_PAGES[`${module}/${resource}`] : undefined;
+  if (Page) {
+    // Route guard: direct URLs obey the same explicit page allow-list as the navigation (read protection).
+    if (!can(actor, `page:${module}/${resource}`))
+      return (
+        <div className="page">
+          <NoAccess what="this page" />
+          <p className="center">
+            <Link to={`${wsBase(actor.workspaceId)}/home/my-work`}>Go to My work</Link>
+          </p>
+        </div>
+      );
+    return <Page key={`${module}/${resource}`} />;
+  }
+  const res = domain().pack.resources.find((r) => r.key === resource);
   if (!res || res.module !== module) return <NotFound />;
   if (kind === 'list') return <ResourcePage key={res.key} />;
   if (kind === 'record') return <RecordPage key={res.key} />;
@@ -79,7 +95,9 @@ function ResourceRoute({ kind }: { kind: 'list' | 'new' | 'edit' | 'record' }) {
 }
 
 function RootRedirect() {
-  const { workspaceId } = getDb().session;
+  const { workspaceId, userId } = getDb().session;
+  // Rentio: staff land on My work; the owner overview is for roles that can see it
+  if (domain().id === 'rentio' && !can(actorFor(userId, workspaceId), 'ct.view')) return <Navigate to={`${wsBase(workspaceId)}/home/my-work`} replace />;
   return <Navigate to={`${wsBase(workspaceId)}/dashboard`} replace />;
 }
 

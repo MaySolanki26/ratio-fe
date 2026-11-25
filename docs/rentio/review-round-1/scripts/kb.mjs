@@ -1,0 +1,33 @@
+const tgt = await (await fetch('http://127.0.0.1:9444/json/new?about:blank', { method: 'PUT' })).json();
+const ws = new WebSocket(tgt.webSocketDebuggerUrl);
+await new Promise((r) => ws.addEventListener('open', r));
+let id = 0; const pending = new Map();
+ws.addEventListener('message', (e) => { const m = JSON.parse(e.data); if (m.id && pending.has(m.id)) { pending.get(m.id)(m); pending.delete(m.id); } });
+const send = (method, params = {}) => new Promise((res) => { const i = ++id; pending.set(i, res); ws.send(JSON.stringify({ id: i, method, params })); });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const ev = async (x) => (await send('Runtime.evaluate', { expression: x, awaitPromise: true, returnByValue: true })).result?.result?.value;
+const key = async (k, code, vk, text) => { await send('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk, text }); await send('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, windowsVirtualKeyCode: vk }); };
+await send('Page.enable');
+await send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 720, deviceScaleFactor: 1, mobile: false });
+await send('Page.navigate', { url: 'http://127.0.0.1:5173/' });
+await sleep(1500);
+await ev(`(() => { const k='rentio.erp.db.v1'; const d=JSON.parse(localStorage.getItem(k)); d.session.userId='u_suresh'; localStorage.setItem(k, JSON.stringify(d)); })()`);
+await send('Page.navigate', { url: 'http://127.0.0.1:5173/o/rentio/w/plant1/home/my-work' });
+await sleep(1500);
+const label = await ev(`document.querySelector('.rt-next button, .rt-next a')?.textContent`);
+let tabs = 0;
+for (; tabs < 60; tabs++) {
+  await key('Tab', 'Tab', 9);
+  if (await ev(`document.activeElement === document.querySelector('.rt-next button, .rt-next a')`)) break;
+}
+const reached = tabs < 60;
+await key('Enter', 'Enter', 13, '\r');
+await sleep(500);
+const opened = await ev(`document.querySelectorAll('.drawer,.dialog').length`);
+const focusInDialog = await ev(`document.activeElement.tagName + '#' + document.activeElement.id + ' ' + String(document.activeElement.className).slice(0,40) + ' in=' + !!document.activeElement.closest('.drawer,.dialog')`);
+await key('Escape', 'Escape', 27);
+await sleep(500);
+const closed = await ev(`document.querySelectorAll('.drawer,.dialog').length`);
+const focusBack = await ev(`document.activeElement === document.querySelector('.rt-next button, .rt-next a')`);
+console.log(JSON.stringify({ nextAction: label, reached, tabs: tabs + 1, opened: opened > 0, focusInDialog, closedByEsc: closed === 0, focusReturned: focusBack }));
+process.exit(0);

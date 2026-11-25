@@ -1,5 +1,5 @@
 /** Communication Service (comments) and Notification Service (inbox state). */
-import { demoUsers } from '../domain/clinic/pack';
+import { demoUsers } from '../domain/active';
 import { uid } from '../lib/ids';
 import { type Actor, canReadRecord } from './authz';
 import { commit, getDb } from './db';
@@ -38,7 +38,7 @@ export function addComment(actor: Actor, resource: string, recordId: string, bod
     if (existing) return existing;
     const record = d.records[resource]?.find((r) => r.id === recordId);
     if (!record || !canReadRecord(actor, res, record)) throw new ServiceError('not_found', 'Record not found.');
-    const mentions = demoUsers.filter((u) => u.id !== actor.user.id && text.includes(`@${u.name}`)).map((u) => u.id);
+    const mentions = demoUsers().filter((u) => u.id !== actor.user.id && text.includes(`@${u.name}`)).map((u) => u.id);
     const comment: Comment = {
       id: uid('cmt'),
       workspaceId: actor.workspaceId,

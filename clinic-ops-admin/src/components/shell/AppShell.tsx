@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { clinicModules, demoUsers, organization, workspaces } from '../../domain/clinic/pack';
+import { demoUsers, domain, modules, organization, workspaces } from '../../domain/active';
 import { cx } from '../../lib/format';
 import { pagePath, recordPeekPath, resourcePath, wsBase } from '../../lib/routes';
 import { PHONE, TABLET, useMedia } from '../../lib/useMedia';
-import { can, canReadResource } from '../../services/authz';
+import { actorFor, can, canReadResource } from '../../services/authz';
 import { listNotifications, markAllRead, markNotification, snoozeNotification } from '../../services/collab';
 import { getPersistError, resetDb } from '../../services/db';
 import { useActor, useRevision } from '../../services/hooks';
@@ -25,10 +25,46 @@ import { TYPE_ICON } from '../resource/ViewControls';
 import { PaletteEditor, ThemePicker } from './ThemePicker';
 import { pageZoom } from '../../lib/zoom';
 
-function moduleVisible(actor: ReturnType<typeof useActor>, m: (typeof clinicModules)[number]) {
+function moduleVisible(actor: ReturnType<typeof useActor>, m: ReturnType<typeof modules>[number]) {
   if (m.resources.some((r) => canReadResource(actor, r))) return true;
   return (m.pages ?? []).some((p) => !p.capability || can(actor, p.capability));
 }
+
+/** Can this actor open the page at `pathname` (same rules as navigation and the route guard)? */
+export function routeAllowed(actor: ReturnType<typeof useActor>, pathname: string) {
+  const parts = pathname.split('/');
+  const seg = parts[5];
+  const sub = parts[6];
+  if (!seg) return true;
+  if (seg === 'dashboard') {
+    const p = modules().find((m) => m.id === 'home')?.pages?.find((x) => x.path === 'dashboard');
+    return !p?.capability || can(actor, p.capability);
+  }
+  const m = modules().find((x) => x.id === seg);
+  if (!m || !sub) return true;
+  const page = m.pages?.find((x) => x.path === sub);
+  if (page) return !page.capability || can(actor, page.capability);
+  if (m.resources.includes(sub)) return canReadResource(actor, sub);
+  return true;
+}
+
+/**
+ * Where a module shortcut (rail, mobile nav) lands for THIS actor: the first page or resource the role may
+ * open, in sidebar order. A module whose default page is forbidden never links to it (direct visits to that
+ * URL are still refused by the route guard).
+ */
+export function moduleLanding(actor: ReturnType<typeof useActor>, m: ReturnType<typeof modules>[number]) {
+  const ws = actor.workspaceId;
+  const pages = (m.pages ?? []).filter((p) => (!p.capability || can(actor, p.capability)) && (!p.resource || canReadResource(actor, p.resource)));
+  if (m.id === 'home') return pages[0] ? pagePath(ws, m.id, pages[0].path) : `${wsBase(ws)}/dashboard`;
+  const res = m.resources.find((r) => canReadResource(actor, r));
+  if (res) return resourcePath(ws, res);
+  if (pages[0]) return pagePath(ws, m.id, pages[0].path);
+  return domain().id === 'rentio' ? `${wsBase(ws)}/home/my-work` : `${wsBase(ws)}/dashboard`;
+}
+
+/** Personal work queue: Rentio's My work; the clinic pack keeps its Work inbox. */
+const inboxPath = (ws: string) => (domain().id === 'rentio' ? `${wsBase(ws)}/home/my-work` : pagePath(ws, 'work', 'inbox'));
 
 function activeModule(pathname: string) {
   const parts = pathname.split('/');
@@ -90,7 +126,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="preview-banner" role="note">
         <Icon name="info" size={14} />
         <span>
-          <strong>Prototype</strong> · Synthetic data stored only in this browser · Roles are simulated (no real sign-in) · Nothing is sent, charged or shared.
+          <strong>Prototype</strong> · {domain().bannerShort ?? domain().banner}
         </span>
         <button type="button" className="link" onClick={() => setHelpOpen(true)}>
           What is real?
@@ -130,16 +166,16 @@ function IconRail({ mod, onHelp }: { mod: string; onHelp: () => void }) {
   const location = useLocation();
   return (
     <nav className="rail" aria-label="Modules">
-      <Link to={`${wsBase(actor.workspaceId)}/dashboard`} className="rail-brand" aria-label={`${organization.name} home`} data-tooltip={organization.name}>
-        <span aria-hidden="true">NW</span>
+      <Link to={`${wsBase(actor.workspaceId)}/dashboard`} className="rail-brand" aria-label={`${organization().name} home`} data-tooltip={organization().name}>
+        <span aria-hidden="true">{domain().id === 'rentio' ? 'RT' : 'NW'}</span>
       </Link>
       <ul className="rail-list">
-        {clinicModules
+        {modules()
           .filter((m) => m.id !== 'admin' && moduleVisible(actor, m))
           .map((m, i) => (
             <li key={m.id} style={{ order: i < 2 ? i : i + 1 }}>
               <Link
-                to={m.id === 'home' ? `${wsBase(actor.workspaceId)}/dashboard` : m.resources[0] ? resourcePath(actor.workspaceId, m.resources[0]) : pagePath(actor.workspaceId, m.id, m.pages![0].path)}
+                to={moduleLanding(actor, m)}
                 className={cx('rail-item', mod === m.id && 'is-active')}
                 aria-current={mod === m.id ? 'page' : undefined}
                 aria-label={m.label}
@@ -151,7 +187,7 @@ function IconRail({ mod, onHelp }: { mod: string; onHelp: () => void }) {
           ))}
         {/* Work inbox: 3rd item in the rail, after Home and Scheduling (owner rule 69) */}
         <li style={{ order: 2 }}>
-          <button type="button" className={cx('rail-item', mod === 'work' && location.pathname.endsWith('inbox') && 'is-active')} aria-label={`Work inbox${unread ? `, ${unread} unread` : ''}`} data-tooltip="Work inbox" onClick={() => navigate(pagePath(actor.workspaceId, 'work', 'inbox'))}>
+          <button type="button" className={cx('rail-item', mod === 'work' && location.pathname.endsWith('inbox') && 'is-active')} aria-label={`${domain().id === 'rentio' ? 'My work' : 'Work inbox'}${unread ? `, ${unread} unread` : ''}`} data-tooltip={domain().id === 'rentio' ? 'My work' : 'Work inbox'} onClick={() => navigate(inboxPath(actor.workspaceId))}>
             <Icon name="inbox" />
             {/* no count badge on the icon rail (owner, 2026-11-24); the unread count stays in the label */}
           </button>
@@ -222,7 +258,7 @@ function SidebarContent({ mod, headerAction }: { mod: string; headerAction?: Rea
   const actor = useActor();
   const settings = getSettings(actor.user.id);
   const location = useLocation();
-  const m = clinicModules.find((x) => x.id === mod) ?? clinicModules[0];
+  const m = modules().find((x) => x.id === mod) ?? modules()[0];
   const here = location.pathname + location.search;
   const [q, setQ] = useState('');
   const [collapsedGroups, setCollapsed] = useState<Set<string>>(new Set());
@@ -440,12 +476,12 @@ function MobileNav({ mod, onClose: closeNow, onSearch, onHelp, showRail }: { mod
       <div ref={ref} className="mobile-nav" role="dialog" aria-modal="true" aria-label="Navigation">
         {showRail && (
           <div className="mobile-modules">
-            {clinicModules
+            {modules()
               .filter((m) => moduleVisible(actor, m))
               .map((m) => (
                 <Link
                   key={m.id}
-                  to={m.id === 'home' ? `${wsBase(actor.workspaceId)}/dashboard` : m.resources[0] ? resourcePath(actor.workspaceId, m.resources[0]) : pagePath(actor.workspaceId, m.id, m.pages![0].path)}
+                  to={moduleLanding(actor, m)}
                   className={cx('mobile-module', mod === m.id && 'is-active')}
                   aria-current={mod === m.id ? 'page' : undefined}
                 >
@@ -511,21 +547,21 @@ function WorkspaceSwitcher() {
   const ref = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const ws = workspaces.find((w) => w.id === actor.workspaceId)!;
+  const ws = workspaces().find((w) => w.id === actor.workspaceId)!;
   return (
     <>
-      <button ref={ref} type="button" className="ws-switch" data-tooltip={`${organization.name} / ${ws.name}`} aria-label={`Clinic workspace: ${ws.name}. Switch workspace`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button ref={ref} type="button" className="ws-switch" data-tooltip={`${organization().name} / ${ws.name}`} aria-label={`Workspace: ${ws.name}. Switch workspace`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <Icon name="building" size={14} />
         <span className="ws-name">{ws.name}</span>
         <Icon name="chevrons-up-down" size={14} />
       </button>
       <Popover open={open} onClose={() => setOpen(false)} anchor={ref} label="Switch clinic workspace" width={260}>
         <p className="pop-label dialog-title-row">
-          {organization.name} · clinic workspaces
-          <InfoTip text="Records are isolated per workspace; links from one clinic never show another clinic’s data." label="About workspaces" />
+          {organization().name} · workspaces
+          <InfoTip text="Records are isolated per workspace; links from one workspace never show another workspace’s data." label="About workspaces" />
         </p>
         <ul className="menu">
-          {workspaces.map((w) => (
+          {workspaces().map((w) => (
             <li key={w.id}>
               <button
                 type="button"
@@ -596,7 +632,7 @@ function NotificationBell() {
         ) : (
           <p className="muted pop-empty">You’re all caught up.</p>
         )}
-        <Link className="pop-foot link" to={pagePath(actor.workspaceId, 'work', 'inbox')} onClick={() => setOpen(false)}>
+        <Link className="pop-foot link" to={inboxPath(actor.workspaceId)} onClick={() => setOpen(false)}>
           Open Work inbox
         </Link>
       </Popover>
@@ -641,6 +677,7 @@ function AccountMenu({ inRail = false }: { inRail?: boolean }) {
   const ref = useRef<HTMLButtonElement>(null);
   const toast = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   return (
     <>
       {inRail ? (
@@ -659,7 +696,7 @@ function AccountMenu({ inRail = false }: { inRail?: boolean }) {
       <Popover open={open} onClose={() => setOpen(false)} anchor={ref} label="Account and role" width={300} align={inRail ? 'start' : 'end'} side={inRail ? 'right' : 'bottom'} className={cx(inRail && 'from-rail')}>
         <p className="pop-label">Simulated sign-in (demo users)</p>
         <ul className="menu">
-          {demoUsers.map((u) => (
+          {demoUsers().map((u) => (
             <li key={u.id}>
               <button
                 type="button"
@@ -668,13 +705,16 @@ function AccountMenu({ inRail = false }: { inRail?: boolean }) {
                   setOpen(false);
                   if (u.id === actor.user.id) return;
                   switchSession(u.id, actor.workspaceId);
+                  // intentional demo role switch: if the new role cannot open this page, land on their My work
+                  // (direct-URL guards still apply to anyone who types or follows a link to a page)
+                  if (!routeAllowed(actorFor(u.id, actor.workspaceId), location.pathname)) navigate(domain().id === 'rentio' ? `${wsBase(actor.workspaceId)}/home/my-work` : `${wsBase(actor.workspaceId)}/dashboard`);
                   toast(`Now viewing as ${u.name} (${getRole(u.roleId).label})`, 'info');
                 }}
               >
                 <Avatar name={u.name} size={22} />
                 <span className="menu-label">
                   {u.name}
-                  <span className="menu-reason">{getRole(u.roleId).label}</span>
+                  <span className="menu-reason">{u.title ?? getRole(u.roleId).label}</span>
                 </span>
                 {u.id === actor.user.id && <Icon name="check" />}
               </button>
@@ -731,6 +771,12 @@ function AccountMenu({ inRail = false }: { inRail?: boolean }) {
 
 export function ResetDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const toast = useToast();
+  const rentio = domain().id === 'rentio';
+  const doReset = (opts?: Record<string, unknown>) => {
+    resetDb(opts);
+    onClose();
+    toast('Demo data reset', 'info');
+  };
   return (
     <Dialog
       open={open}
@@ -744,20 +790,31 @@ export function ResetDialog({ open, onClose }: { open: boolean; onClose: () => v
           <Button onClick={onClose} data-autofocus>
             Cancel
           </Button>
-          <Button
-            variant="danger"
-            onClick={() => {
-              resetDb();
-              onClose();
-              toast('Demo data reset', 'info');
-            }}
-          >
-            Reset data
-          </Button>
+          {rentio ? (
+            <>
+              <Button variant="danger" onClick={() => doReset({ dataset: 'demo' })}>
+                Demo snapshot
+              </Button>
+              <Button variant="danger" onClick={() => doReset({ dataset: 'start' })}>
+                Reset to starting RT-001
+              </Button>
+              <Button variant="danger" onClick={() => doReset({ dataset: 'completed' })}>
+                Reset to completed RT-001
+              </Button>
+            </>
+          ) : (
+            <Button variant="danger" onClick={() => doReset()}>
+              Reset data
+            </Button>
+          )}
         </>
       }
     >
-      <p className="muted">All records, comments, approvals, views and configuration changes you made will be discarded.</p>
+      <p className="muted">
+        {rentio
+          ? 'All Rentio transactions in this browser are replaced by a freshly replayed data set: “demo snapshot” (default) has RT-001 completed plus RT-003 waiting for a manual handover; “starting” has RT-001 ready to execute; “completed” has all RT-001 steps posted. Exception cases are included in all. Back up first from Presenter tools if you need the current data.'
+          : 'All records, comments, approvals, views and configuration changes you made will be discarded.'}
+      </p>
     </Dialog>
   );
 }
@@ -790,7 +847,7 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
       onClose();
       navigate(to);
     };
-    clinicModules.forEach((m) => {
+    modules().forEach((m) => {
       (m.pages ?? []).filter((p) => (!p.capability || can(actor, p.capability)) && (!p.resource || canReadResource(actor, p.resource))).forEach((p) => out.push({ id: `p-${p.id}`, label: p.label, hint: m.label, icon: p.icon, run: go(pagePath(actor.workspaceId, m.id, p.path)) }));
       m.resources
         .filter((r) => canReadResource(actor, r))

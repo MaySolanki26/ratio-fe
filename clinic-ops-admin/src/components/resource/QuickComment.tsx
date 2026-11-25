@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { demoUsers } from '../../domain/clinic/pack';
+import { demoUsers } from '../../domain/active';
 import { uid } from '../../lib/ids';
 import type { Actor } from '../../services/authz';
 import { addComment, getCommentDraft, saveCommentDraft } from '../../services/collab';
@@ -121,7 +121,7 @@ export function QuickComment({ actor, resource, recordId }: { actor: Actor; reso
       </div>
       <Popover open={mentionOpen} onClose={() => setMentionOpen(false)} anchor={mentionRef.current ? mentionRef : areaRef} label="Mention a teammate" width={240}>
         <ul className="menu" role="listbox" aria-label="Teammates">
-          {demoUsers
+          {demoUsers()
             .filter((u) => u.id !== actor.user.id)
             .map((u) => (
               <li key={u.id}>

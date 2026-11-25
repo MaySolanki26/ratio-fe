@@ -1,3 +1,4 @@
+import { domain } from '../domain/active';
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { relativeTime, todayKey } from '../lib/dates';
@@ -289,6 +290,7 @@ export function MyWorkRedirect() {
       </div>
     );
   }
+  if (domain().id === 'rentio') return <Navigate to={pagePath(actor.workspaceId, 'home', 'my-work')} replace />;
   return <Navigate to={`${pagePath(actor.workspaceId, 'work', 'inbox')}?tab=tasks`} replace />;
 }
 

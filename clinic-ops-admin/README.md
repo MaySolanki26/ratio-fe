@@ -1,3 +1,15 @@
+# Rentio Smart ERP prototype (on the UAB 2.0 admin boilerplate)
+
+This app now runs the **Rentio Smart ERP** domain pack by default: a toor dal mill from farmer purchase through stages, godowns, 17 distributors and retailer delivery, plus by-products, Tally (simulated), HR and planning. All data is fictional and stays in this browser (`rentio.erp.db.v1`).
+
+- Run: `npm ci && npm run dev -- --host 127.0.0.1` → http://127.0.0.1:5173/
+- Status, walkthrough, role switching and limitations: [`../docs/rentio/BUILD_STATUS.md`](../docs/rentio/BUILD_STATUS.md)
+- Demo defaults (not approved policy): [`../docs/rentio/DEMO_ASSUMPTIONS.md`](../docs/rentio/DEMO_ASSUMPTIONS.md)
+
+The original clinic example pack is preserved (`src/domain/clinic/`) with its own storage key and tests; the notes below describe that pack and the shared platform.
+
+---
+
 # Clinic Operations Admin — UAB 2.0 frontend prototype
 
 An administrative clinic operations app (scheduling, patient registry, billing, referrals, work) built with the

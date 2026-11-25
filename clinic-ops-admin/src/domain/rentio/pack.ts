@@ -52,32 +52,34 @@ function resource(r: {
   };
 }
 
+// Skill rules 41 / 76c: values without a status meaning (category, grade, location type, shift, by-product)
+// are neutral grey — colour is reserved for meaning (quarantine = problem).
 const masters: MasterDefinition[] = [
   { id: 'mst_supplierCategory', key: 'supplierCategory', label: 'Supplier category', version: 1, values: [
-    { key: 'farmer', label: 'Farmer', tone: 'success', active: true, order: 0 },
-    { key: 'vendor', label: 'Vendor / trader', tone: 'info', active: true, order: 1 },
+    { key: 'farmer', label: 'Farmer', tone: 'neutral', active: true, order: 0 },
+    { key: 'vendor', label: 'Vendor / trader', tone: 'neutral', active: true, order: 1 },
     { key: 'stores_vendor', label: 'Stores vendor', tone: 'neutral', active: true, order: 2 },
   ] },
   { id: 'mst_partyStatus', key: 'partyStatus', label: 'Status', version: 1, values: [
     { key: 'active', label: 'Active', tone: 'success', active: true, order: 0 },
     { key: 'inactive', label: 'Inactive', tone: 'neutral', active: true, order: 1 },
   ] },
-  { id: 'mst_grade', key: 'grade', label: 'Grade', version: 1, values: ['A1', 'B1', 'A2', 'B2'].map((g, i) => ({ key: g, label: g, tone: i % 2 ? 'info' : 'success', active: true, order: i })) },
+  { id: 'mst_grade', key: 'grade', label: 'Grade', version: 1, values: ['A1', 'B1', 'A2', 'B2'].map((g, i) => ({ key: g, label: g, tone: 'neutral', active: true, order: i })) },
   { id: 'mst_locationKind', key: 'locationKind', label: 'Location type', version: 1, values: [
-    { key: 'raw', label: 'Raw godown', tone: 'warning', active: true, order: 0 },
-    { key: 'finished', label: 'Finished godown', tone: 'success', active: true, order: 1 },
-    { key: 'stack', label: 'Stack / bin', tone: 'info', active: true, order: 2 },
-    { key: 'byproduct', label: 'By-product store', tone: 'accent', active: true, order: 3 },
+    { key: 'raw', label: 'Raw godown', tone: 'neutral', active: true, order: 0 },
+    { key: 'finished', label: 'Finished godown', tone: 'neutral', active: true, order: 1 },
+    { key: 'stack', label: 'Stack / bin', tone: 'neutral', active: true, order: 2 },
+    { key: 'byproduct', label: 'By-product store', tone: 'neutral', active: true, order: 3 },
     { key: 'stores', label: 'Stores', tone: 'neutral', active: true, order: 4 },
     { key: 'quarantine', label: 'Quarantine', tone: 'danger', active: true, order: 5 },
   ] },
   { id: 'mst_shift', key: 'shift', label: 'Shift', version: 1, values: [
-    { key: 'day', label: 'Day (09:00–17:30)', tone: 'info', active: true, order: 0 },
-    { key: 'night', label: 'Night (21:00–06:00, overnight)', tone: 'accent', active: true, order: 1 },
+    { key: 'day', label: 'Day (09:00–17:30)', tone: 'neutral', active: true, order: 0 },
+    { key: 'night', label: 'Night (21:00–06:00, overnight)', tone: 'neutral', active: true, order: 1 },
   ] },
   { id: 'mst_byproduct', key: 'byproduct', label: 'By-product type', version: 1, values: [
-    { key: 'HUSK', label: 'Husk', tone: 'warning', active: true, order: 0 },
-    { key: 'CHURI', label: 'Churi', tone: 'accent', active: true, order: 1 },
+    { key: 'HUSK', label: 'Husk', tone: 'neutral', active: true, order: 0 },
+    { key: 'CHURI', label: 'Churi', tone: 'neutral', active: true, order: 1 },
   ] },
 ];
 

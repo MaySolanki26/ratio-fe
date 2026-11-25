@@ -57,6 +57,8 @@ export interface AppDomain {
   currency: string;
   locale: string;
   defaultSession: { userId: string; workspaceId: string };
+  /** Colour palette every new user starts with (a PRESET_PALETTES id). Missing = Graphite Black. */
+  defaultPalette?: string;
   seed(now: Date, opts?: Record<string, unknown>): SeedResult;
   /** Prototype banner text (full, shown in Help › What is real). */
   banner: string;

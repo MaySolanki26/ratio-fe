@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { PersonName } from '../primitives/People';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import type { FieldDefinition, RecordData, ResourceDefinition } from '../../metadata/types';
@@ -457,7 +458,7 @@ function Details({ res, actor, p }: { res: ResourceDefinition; actor: Actor; p: 
           <div className="detail-row">
             <dt>Created</dt>
             <dd>
-              <DateText value={p.record.createdAt} showTime /> by {getUser(p.record.createdBy)?.name ?? (p.record.createdBy === 'system_seed' ? 'Synthetic seed' : p.record.createdBy)}
+              <DateText value={p.record.createdAt} showTime /> by {getUser(p.record.createdBy) ? <PersonName name={getUser(p.record.createdBy)!.name} /> : p.record.createdBy === 'system_seed' ? 'Synthetic seed' : p.record.createdBy}
             </dd>
           </div>
           <div className="detail-row">
@@ -589,7 +590,7 @@ function ActivityFeed({ resKey, recordId }: { resKey: string; recordId: string }
               <span className="timeline-dot" aria-hidden="true" />
               <div>
                 <p>
-                  <strong>{getUser(a.actorId)?.name ?? a.actorId}</strong> {a.actorType === 'workflow' && <span className="tag">workflow</span>} {a.summary}
+                  <strong>{getUser(a.actorId) ? <PersonName name={getUser(a.actorId)!.name} /> : a.actorId}</strong> {a.actorType === 'workflow' && <span className="tag">workflow</span>} {a.summary}
                 </p>
                 {a.changes && a.changes.length > 0 && (
                   <ul className="change-list">
@@ -625,7 +626,7 @@ function CommentThread({ actor, resKey, recordId }: { actor: Actor; resKey: stri
           {comments.map((c) => (
             <li key={c.id} className="thread-item">
               <div className="thread-head">
-                <strong>{getUser(c.authorId)?.name ?? c.authorId}</strong>
+                <strong>{getUser(c.authorId) ? <PersonName name={getUser(c.authorId)!.name} /> : c.authorId}</strong>
                 <span className="tag">Internal</span>
                 <time className="muted small" dateTime={c.createdAt}>
                   {relativeTime(c.createdAt)}

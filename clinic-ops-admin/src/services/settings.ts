@@ -1,7 +1,7 @@
 /** Settings Resolver: personal preferences (local-only) layered on platform constraints. */
 import { domain } from '../domain/active';
 import type { Actor } from './authz';
-import { commit, defaultSettings, getDb, storageKey } from './db';
+import { commit, defaultPaletteId, defaultSettings, getDb, storageKey, THEME_REV } from './db';
 import type { PersonalSettings } from './types';
 
 /** Platform constraints a user cannot override. */
@@ -13,7 +13,11 @@ export function getSettings(userId: string): PersonalSettings {
   let s = { ...defaultSettings(), ...(saved ?? {}) };
   // One-time move to the new default theme (Graphite Black) for settings saved before it existed.
   // Check the SAVED value — the defaults already carry themeRev 2 and would hide old settings.
-  if (saved && (saved.themeRev ?? 1) < 2) s = { ...s, palette: 'graphite', themeRev: 2 };
+  const def = defaultPaletteId();
+  if (saved && (saved.themeRev ?? 1) < 2) s = { ...s, palette: def, themeRev: THEME_REV };
+  // Rev 3: a project whose default is not Graphite (Rentio → 'rentio') moves users still on the old
+  // Graphite default once; any other palette the user picked is kept.
+  else if (saved && (saved.themeRev ?? 1) < THEME_REV) s = { ...s, palette: s.palette === 'graphite' ? def : s.palette, themeRev: THEME_REV };
   // Rentio is light-first. Theme is stored PER DEMO USER (db.settings[userId]), never globally.
   // Migration rule for settings saved before `themeSet` existed: the old default was 'system', so a
   // saved 'light'/'dark' can only come from that user's own click → kept as their explicit choice.
@@ -69,7 +73,7 @@ export function saveCustomPalette(actor: Actor, p: { id?: string; name: string; 
 
 export function deleteCustomPalette(actor: Actor, id: string) {
   const s = getSettings(actor.user.id);
-  updateSettings(actor.user.id, { customPalettes: s.customPalettes.filter((x) => x.id !== id), palette: s.palette === id ? 'graphite' : s.palette });
+  updateSettings(actor.user.id, { customPalettes: s.customPalettes.filter((x) => x.id !== id), palette: s.palette === id ? defaultPaletteId() : s.palette });
 }
 
 /**

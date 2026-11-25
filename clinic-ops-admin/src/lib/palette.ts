@@ -30,6 +30,9 @@ export const PRESET_PALETTES: Palette[] = [
   { id: 'rose', name: 'Rose', accent: '#be185d', sidebar: '#ffffff', rail: '#2a1e25' },
   { id: 'graphite', name: 'Graphite Black', accent: '#3f3f46', sidebar: '#ffffff', rail: '#15161a' },
   { id: 'daylight', name: 'Daylight', accent: '#5b47c7', sidebar: '#ffffff', rail: '#ececf1' },
+  /** Rentio sign-in colours (styles/rentio.css `.rt-login`): maroon accent, dark-ink rail; the page canvas is the
+   *  standard light grey with a small maroon tint (owner, 2026-11-25 — the paper beige was too strong behind cards) */
+  { id: 'rentio', name: 'Rentio Heritage', accent: '#a3162b', sidebar: '#ffffff', rail: '#3b1f12' },
 ];
 
 const HEX = /^#([0-9a-f]{6})$/i;

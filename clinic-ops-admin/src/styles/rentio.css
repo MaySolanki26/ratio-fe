@@ -84,7 +84,7 @@
   padding: 10px 12px;
   background: var(--s-panel);
   border: 1px solid var(--s-border);
-  border-radius: var(--c-radius-panel);
+  border-radius: var(--c-radius-kpi);
   color: inherit;
   text-decoration: none;
   min-width: 0;
@@ -122,28 +122,37 @@
   overflow-x: auto;
   max-width: 100%;
 }
+/* Skill rules 62 / 91 / 17 (latest): one table look — white header, regular-weight labels in the main
+   text colour, 13px cells, 10px side padding, rows >= 34px, hairline rows, every column left-aligned. */
 .rt-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--fs-secondary);
+  font-size: var(--fs-supportive);
 }
 .rt-table th {
   text-align: left;
-  font-weight: var(--fw-medium);
-  color: var(--s-text-secondary);
+  font-weight: var(--fw-regular, 400);
+  color: var(--s-text);
   font-size: var(--fs-supportive);
-  padding: 6px 8px;
+  height: 34px;
+  padding: 0 10px;
   border-bottom: 1px solid var(--s-border);
   background: var(--c-grid-header-bg);
   white-space: nowrap;
 }
 .rt-table td {
-  padding: 7px 8px;
+  height: 34px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--s-border);
   vertical-align: middle;
 }
+.rt-table-wrap .grid-footer {
+  border-top: 0;
+  padding-left: 10px;
+  padding-right: 0;
+}
 .rt-table .num {
-  text-align: right;
+  text-align: left;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -199,21 +208,21 @@
   gap: 4px;
   font-size: var(--fs-xs);
   padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px dashed var(--s-border-strong);
+  border-radius: 6px; /* chips keep their small shape (skill rule 81) */
+  background: color-mix(in srgb, var(--s-text) 6%, var(--s-panel)); /* neutral chip: no meaning colour, no border */
   color: var(--s-text-secondary);
   white-space: nowrap;
 }
 .rt-ref {
-  font-family: 'Geist Mono Variable', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums; /* Geist only (skill rule 69a) */
   font-size: var(--fs-supportive);
   background: var(--s-sunken);
   padding: 0 4px;
-  border-radius: 4px;
+  border-radius: 5px; /* tag shape (skill rule 81) */
   white-space: nowrap;
 }
 .rt-lot {
-  font-family: 'Geist Mono Variable', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums; /* Geist only (skill rule 69a) */
   font-size: var(--fs-supportive);
   background: none;
   border: 0;
@@ -273,6 +282,17 @@
 }
 .rt-who {
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+}
+.rt-who-avatar {
+  font-size: 9px;
+  line-height: 1;
+}
+.rt-who-avatar::before {
+  content: attr(data-initials);
 }
 .rt-steps {
   list-style: none;
@@ -386,7 +406,7 @@
 .rt-mobile {
   max-width: 420px;
   border: 1px solid var(--s-border-strong);
-  border-radius: 20px;
+  border-radius: var(--c-radius-panel);
   padding: 14px;
   background: var(--s-panel);
 }
@@ -1571,7 +1591,7 @@ a.rt-fc-box:focus-visible {
   gap: 2px 10px;
   padding: 6px 10px;
   border: 1px solid var(--s-border);
-  border-radius: 8px;
+  border-radius: var(--c-radius-control);
   background: var(--s-panel);
   min-width: min(100%, 300px);
   max-width: 100%;
@@ -1581,7 +1601,7 @@ a.rt-fc-box:focus-visible {
   background: var(--s-sunken);
 }
 .rt-tree-id {
-  font-family: 'Geist Mono Variable', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums; /* Geist only (skill rule 69a) */
   font-weight: var(--fw-medium);
 }
 .rt-tree-sub {
@@ -1855,4 +1875,548 @@ a.rt-fc-box:focus-visible {
   display: grid;
   gap: 2px;
   margin-top: 8px;
+}
+
+/* ── Owner overview: dashboard-kit layout (KPI row · decision/risk lists · charts · tables) ── */
+.rt-owner {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.rt-oa-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 20px 8px;
+}
+.rt-oa-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--s-border);
+}
+.rt-oa-row:last-child {
+  border-bottom: 0;
+}
+.rt-oa-row > a {
+  align-self: center;
+  text-decoration: none;
+}
+.rt-oa-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  color: var(--s-text-muted);
+  background: var(--s-sunken);
+}
+.rt-oa-icon.is-danger {
+  color: var(--s-danger);
+  background: var(--s-danger-bg);
+}
+.rt-oa-icon.is-warning {
+  color: var(--s-warning);
+  background: var(--s-warning-bg);
+}
+.rt-oa-icon.is-info {
+  color: var(--s-info);
+  background: var(--s-info-bg);
+}
+.rt-oa-icon.is-success {
+  color: var(--s-success);
+  background: var(--s-success-bg);
+}
+.rt-oa-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.rt-oa-title {
+  font-size: var(--fs-supportive);
+  font-weight: var(--fw-medium);
+  color: var(--s-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rt-oa-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
+  font-size: var(--fs-caption, 12px);
+  color: var(--s-text-secondary);
+}
+.rt-oa-qty {
+  font-weight: var(--fw-medium);
+  color: var(--s-text);
+  font-variant-numeric: tabular-nums;
+}
+.rt-oa-foot {
+  margin: 0;
+  padding: 0 20px 16px;
+  text-align: center;
+}
+.rt-oa-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-supportive);
+}
+.rt-oa-table th {
+  padding: 0 10px 8px 0;
+  border-bottom: 1px solid var(--s-border);
+  font-weight: 400;
+  text-align: left;
+  color: var(--s-text-muted);
+  white-space: nowrap;
+}
+.rt-oa-table td {
+  padding: 10px 10px 10px 0;
+  border-bottom: 1px solid var(--s-border);
+  vertical-align: middle;
+}
+.rt-oa-table tr:last-child td {
+  border-bottom: 0;
+}
+.rt-oa-table td:first-child {
+  max-width: 0;
+  width: 46%;
+}
+.rt-oa-facts {
+  margin: 0;
+  padding: 0 20px 12px;
+}
+.rt-oa-facts > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--s-border);
+  font-size: var(--fs-supportive);
+}
+.rt-oa-facts > div:last-child {
+  border-bottom: 0;
+}
+.rt-oa-facts dt {
+  color: var(--s-text-secondary);
+}
+.rt-oa-facts dd {
+  margin: 0;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.rt-oa-facts .is-danger dd {
+  color: var(--s-danger);
+}
+.rt-oa-facts .is-warning dd {
+  color: var(--s-warning);
+}
+.rt-owner .rt-charts {
+  gap: 16px;
+}
+/* production route: idle stages shrink to a quiet narrow box so the busy and late stages stand out */
+@media (min-width: 1101px) {
+  .rt-owner .rt-fc.is-long {
+    display: flex;
+    column-gap: 22px;
+  }
+  .rt-owner .rt-fc.is-long > .rt-fc-node {
+    flex: 2 1 0;
+  }
+  .rt-owner .rt-fc.is-long > .rt-fc-node.is-idle {
+    flex: 1 1 0;
+  }
+}
+.rt-owner .rt-fc-node.is-idle .rt-fc-box {
+  background: var(--s-sunken);
+}
+.rt-owner .rt-fc-node.is-idle .rt-fc-value {
+  color: var(--s-text-muted);
+  font-weight: var(--fw-medium);
+}
+.rt-owner .rt-fc-node.is-idle .rt-fc-bar,
+.rt-owner .rt-fc-node.is-idle .rt-fc-status {
+  visibility: hidden;
+}
+/* list cards (decisions, risks, orders, money, replenishment) start at the top instead of centring like charts */
+.rt-owner .dv-card.rt-oa-card .dv-card-body {
+  justify-content: flex-start;
+}
+@media (max-width: 1100px) {
+  .rt-owner .dv-row.is-wide-right {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+/* phones: the action button drops under the text so titles keep their width */
+@media (max-width: 560px) {
+  .rt-oa-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .rt-oa-row > a {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+/* ===================== Charts use the dashboard kit look everywhere (2026-11-25) =====================
+   One chart language across Rentio: the kit palette for categories, the kit's card (14px corner, soft edge,
+   52px title row without a divider), thin rounded bars on a soft track, round legend dots. Figures, legends,
+   hover text and "Show as table" stay exactly as before. */
+:root,
+:root[data-theme='dark'] {
+  --rt-c1: var(--c-palette-1);
+  --rt-c2: var(--c-palette-2);
+  --rt-c3: var(--c-palette-3);
+  --rt-c4: var(--c-palette-4);
+  --rt-c5: var(--c-palette-5);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --rt-c1: var(--c-palette-1);
+    --rt-c2: var(--c-palette-2);
+    --rt-c3: var(--c-palette-3);
+    --rt-c4: var(--c-palette-4);
+    --rt-c5: var(--c-palette-5);
+  }
+}
+.rt-chart {
+  padding: 0 0 16px;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--s-text) 7%, var(--s-panel));
+  border-radius: var(--c-radius-kpi, 14px);
+  box-shadow: 0 1px 2px rgba(20, 20, 30, 0.04);
+}
+.rt-chart > :not(.rt-chart-head) {
+  margin-inline: 20px;
+}
+.rt-chart-head {
+  min-height: 52px;
+  padding: 14px 20px 0;
+  border-bottom: 0;
+  align-items: baseline;
+}
+/* on the owner overview the charts sit on the soft canvas like the kit cards: no edge, soft shadow */
+.rt-owner .rt-chart {
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(20, 20, 30, 0.03);
+}
+.rt-chart-legend {
+  gap: 6px 16px;
+  font-size: var(--fs-supportive);
+}
+.rt-chart-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.rt-chart-swatch.is-hatch {
+  border-radius: 50%;
+}
+.rt-chart-rows {
+  gap: 10px;
+}
+.rt-chart-row {
+  font-size: var(--fs-supportive);
+}
+.rt-chart-track,
+.rt-viz .rt-chart-track {
+  height: 10px;
+  border-radius: 999px;
+  gap: 2px;
+  background: color-mix(in srgb, var(--s-text) 6%, var(--s-panel));
+  overflow: hidden;
+}
+.rt-chart-seg,
+.rt-viz .rt-chart-seg,
+.rt-viz .rt-chart-seg:first-child,
+.rt-viz .rt-chart-seg:last-child {
+  border-radius: 999px;
+}
+.rt-chart-seg + .rt-chart-seg {
+  border-left: 0;
+}
+/* thin bars carry no inside label: the value is in the hover text, the row total and the table view */
+.rt-chart-track .rt-seg-label {
+  display: none;
+}
+.rt-chart-row:hover .rt-chart-track {
+  box-shadow: none;
+  background: color-mix(in srgb, var(--s-text) 10%, var(--s-panel));
+}
+.rt-chart-total {
+  color: var(--s-text);
+  font-weight: var(--fw-medium);
+}
+.rt-chart-axis {
+  padding-top: 6px;
+  border-top: 1px solid var(--s-border);
+}
+.rt-chart .rt-details > summary {
+  border-radius: var(--c-radius-control);
+}
+/* kit chart marks for every Rentio page (the kit sets them only on its dashboard root): Pastel mix */
+.rt-page {
+  --c-mark-1: var(--c-palette-1);
+  --c-mark-2: var(--c-palette-2);
+  --c-mark-3: var(--c-palette-3);
+  --c-mark-4: var(--c-palette-4);
+  --c-mark-5: var(--c-palette-5);
+  --c-mark-6: var(--c-palette-6);
+  --c-trend-2: var(--c-dot-success);
+}
+/* donut (part-to-whole) inside a Rentio chart card */
+.rt-share .dv-part {
+  min-width: 0;
+}
+
+/* ===================== Production line (owner overview): stations on one line ===================== */
+.rt-pl {
+  margin: 0;
+  padding: 8px 20px 18px;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.rt-pl-line {
+  --node: 46px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 8), minmax(0, 1fr));
+}
+.rt-pl-stop {
+  position: relative;
+  min-width: 0;
+}
+/* the line: from this station's centre to the next one's */
+.rt-pl-stop:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: calc(var(--node) / 2 - 2px);
+  left: calc(50% + var(--node) / 2 + 4px);
+  right: calc(-50% + var(--node) / 2 + 4px);
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--s-text) 8%, var(--s-panel));
+}
+.rt-pl-stop.is-flowing::after {
+  background: repeating-linear-gradient(90deg, var(--c-mark-5) 0 10px, color-mix(in srgb, var(--c-mark-5) 35%, var(--s-panel)) 10px 20px);
+  background-size: 40px 100%;
+  animation: rt-pl-flow 1.2s linear infinite;
+}
+@keyframes rt-pl-flow {
+  to {
+    background-position: 40px 0;
+  }
+}
+.rt-pl-hit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  color: inherit;
+  text-decoration: none;
+  text-align: center;
+  border-radius: var(--c-radius-control);
+}
+.rt-pl-hit:hover .rt-pl-node {
+  transform: scale(1.06);
+}
+.rt-pl-hit:focus-visible {
+  outline: 2px solid var(--s-accent);
+  outline-offset: 2px;
+}
+/* station: a ring filled by its share of the busiest stage */
+.rt-pl-node {
+  display: grid;
+  place-items: center;
+  width: var(--node);
+  height: var(--node);
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: conic-gradient(var(--ring, var(--c-mark-1)) var(--fill, 0%), color-mix(in srgb, var(--s-text) 8%, var(--s-panel)) 0);
+  transition: transform var(--motion-fast, 0.12s) ease;
+}
+.rt-pl-core {
+  display: grid;
+  place-items: center;
+  width: calc(var(--node) - 10px);
+  height: calc(var(--node) - 10px);
+  border-radius: 50%;
+  background: var(--s-panel);
+  font-size: var(--fs-supportive);
+  font-weight: var(--fw-semibold);
+  color: var(--ring, var(--c-mark-1));
+}
+.rt-pl-stop.is-late .rt-pl-node {
+  --ring: var(--c-dot-danger);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-dot-danger) 16%, transparent);
+}
+.rt-pl-stop.is-paused .rt-pl-node {
+  --ring: var(--c-dot-warning);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-dot-warning) 16%, transparent);
+}
+/* idle stations: a small hollow dot centred on the line */
+.rt-pl-stop.is-idle .rt-pl-node {
+  width: 16px;
+  height: 16px;
+  margin: calc((var(--node) - 16px) / 2) 0 calc((var(--node) - 16px) / 2 + 6px);
+  background: var(--s-panel);
+  border: 2px solid color-mix(in srgb, var(--s-text) 22%, var(--s-panel));
+}
+.rt-pl-stop.is-idle .rt-pl-core {
+  display: none;
+}
+.rt-pl-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-supportive);
+  font-weight: var(--fw-medium);
+  color: var(--s-text);
+}
+.rt-pl-stop.is-idle .rt-pl-name {
+  color: var(--s-text-muted);
+  font-weight: 400;
+}
+.rt-pl-kg {
+  font-size: var(--fs-secondary);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--s-text);
+}
+.rt-pl-stop.is-idle .rt-pl-kg {
+  color: var(--s-text-muted);
+  font-weight: 400;
+}
+.rt-pl-split {
+  display: flex;
+  gap: 2px;
+  width: min(100%, 96px);
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rt-pl-split > span {
+  min-width: 3px;
+  border-radius: 999px;
+}
+.rt-pl-state {
+  font-size: var(--fs-caption, 12px);
+  color: var(--s-text-muted);
+}
+.rt-pl-state.is-bad {
+  color: var(--s-danger);
+  font-weight: var(--fw-medium);
+}
+.rt-pl-state.is-warn {
+  color: var(--s-warning);
+  font-weight: var(--fw-medium);
+}
+.rt-pl-state.is-info {
+  color: var(--s-info);
+}
+.rt-pl-state.is-good {
+  color: var(--s-success);
+}
+.rt-pl-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--s-border);
+  list-style: none;
+  font-size: var(--fs-caption, 12px);
+  color: var(--s-text-secondary);
+}
+.rt-pl-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rt-pl-legend li > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.rt-pl-legend .rt-pl-legend-note {
+  margin-left: auto;
+  color: var(--s-text-muted);
+}
+/* narrow screens: the line turns vertical — stations top to bottom, details beside the node */
+@media (max-width: 760px) {
+  .rt-pl-line {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 6px;
+  }
+  .rt-pl-stop:not(:last-child)::after {
+    top: calc(var(--node) + 2px);
+    bottom: -4px;
+    left: calc(4px + var(--node) / 2 - 2px);
+    right: auto;
+    width: 4px;
+    height: auto;
+  }
+  .rt-pl-stop.is-flowing::after {
+    background: repeating-linear-gradient(180deg, var(--c-mark-5) 0 10px, color-mix(in srgb, var(--c-mark-5) 35%, var(--s-panel)) 10px 20px);
+    background-size: 100% 40px;
+    animation-name: rt-pl-flow-v;
+  }
+  .rt-pl-hit {
+    display: grid;
+    grid-template-columns: var(--node) minmax(0, 1fr) auto;
+    grid-template-areas: 'node name kg' 'node state split';
+    align-items: center;
+    column-gap: 12px;
+    text-align: left;
+  }
+  .rt-pl-node {
+    grid-area: node;
+    margin: 0;
+  }
+  .rt-pl-stop.is-idle .rt-pl-node {
+    margin: 0 auto;
+  }
+  .rt-pl-name {
+    grid-area: name;
+  }
+  .rt-pl-kg {
+    grid-area: kg;
+    justify-self: end;
+  }
+  .rt-pl-state {
+    grid-area: state;
+  }
+  .rt-pl-split {
+    grid-area: split;
+    justify-self: end;
+    width: 72px;
+  }
+  .rt-pl-legend .rt-pl-legend-note {
+    margin-left: 0;
+  }
+}
+@keyframes rt-pl-flow-v {
+  to {
+    background-position: 0 40px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rt-pl-stop.is-flowing::after {
+    animation: none;
+  }
+  .rt-pl-node {
+    transition: none;
+  }
 }

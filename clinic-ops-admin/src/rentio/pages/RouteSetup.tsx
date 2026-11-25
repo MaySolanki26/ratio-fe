@@ -38,6 +38,7 @@ export default function RouteSetup() {
           <FormButton
             label="Activate new route version"
             icon="plus"
+            variant="primary"
             disabledReason={routeReason}
             title="Activate a new route version"
             submitLabel="Activate version"

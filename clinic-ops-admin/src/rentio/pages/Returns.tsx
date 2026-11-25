@@ -11,7 +11,7 @@ import { recallRecipients } from '../../domain/rentio/recall';
 import type { Complaint } from '../../domain/rentio/types';
 import { fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
-import { Details, FormButton, ImplNote, LotLink, num, Panel, Qty, Reason, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime } from '../ui';
+import { Details, FormButton, ImplNote, LotLink, num, Panel, Qty, Reason, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime, RSelect } from '../ui';
 import { FocusMissing } from './_distHelpers';
 import { ReturnCharts } from './_graphB';
 
@@ -211,13 +211,7 @@ function RecallView() {
       meta="Origin lot, every lot made from it, where it is now and who received it"
       actions={
         <>
-          <select className="input" aria-label="Root lot" value={root} onChange={(e) => setRoot(e.target.value)}>
-            {roots.map((r) => (
-              <option key={r.id} value={r.id}>
-                {r.id} — {r.label}
-              </option>
-            ))}
-          </select>
+          <RSelect label="Root lot" value={root} onChange={setRoot} options={roots.map((r) => ({ value: r.id, label: `${r.id} — ${r.label}` }))} />
           <FormButton
             label="Place recall hold"
             variant="primary"

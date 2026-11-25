@@ -15,7 +15,7 @@ import { cx } from '../../lib/format';
 import { wsBase } from '../../lib/routes';
 import { useAct, useR } from '../store';
 import { ChartGrid, FlowChain, MASS_SEGS, massRows, RunTimeline, StackBars, STATUS } from '../graphics';
-import { BasisChip, Details, Eta, FormButton, type FormValues, fromLocalInput, fromLocalInputAfter,ImplNote, LotLink, num, Panel, Qty, Ref, RPage, Status, Steps, str, Table, toLocalInput, useFocusId, Who, fmtTime } from '../ui';
+import { BasisChip, Details, Eta, FormButton, type FormValues, fromLocalInput, fromLocalInputAfter, ImplNote, LotLink, num, Panel, Qty, Ref, RPage, Status, Steps, str, Table, toLocalInput, useFocusId, Who, fmtTime, RSelect, RDateTime } from '../ui';
 
 const OUT_FIELDS: Record<StageCode, { fwd: number; grade?: boolean; rework?: boolean; byp?: boolean; reject?: boolean; oil?: boolean; pack?: boolean }> = {
   CLEAN: { fwd: 1, reject: true },
@@ -48,13 +48,13 @@ export const timeHelp = (earliest?: string) =>
 /** Prefill: now, but never before the earliest allowed time. */
 const prefill = (now: string, earliest?: string) => toLocalInput(earliest && earliest > now ? earliest : now);
 
-function TimeInput({ id, label, value, onChange, earliest, now }: { id: string; label: string; value: string; onChange: (v: string) => void; earliest?: string; now: string }) {
+function TimeInput({ id, label, value, onChange, earliest }: { id: string; label: string; value: string; onChange: (v: string) => void; earliest?: string; now: string }) {
   return (
     <div className="form-field">
       <label className="field-label" htmlFor={id}>
         {label}
       </label>
-      <input id={id} className="input" type="datetime-local" min={earliest ? toLocalInput(earliest) : undefined} max={toLocalInput(now)} value={value} onChange={(e) => onChange(e.target.value)} />
+      <RDateTime id={id} label={label} value={value} onChange={onChange} />
       <span className="field-help">{timeHelp(earliest)}</span>
     </div>
   );
@@ -183,11 +183,7 @@ export function OutputButton({ run, variant = 'primary' }: { run: StageRun; vari
   const sel = (k: string, label: string, opts: { value: string; label: string }[], v: FormValues, set: (k: string, x: string) => void) => (
     <div className="form-field">
       <label className="field-label" htmlFor={`o-${k}`}>{label}</label>
-      <select id={`o-${k}`} className="input" value={String(v[k] ?? '')} onChange={(e) => set(k, e.target.value)}>
-        {opts.map((o) => (
-          <option key={o.value} value={o.value}>{o.label}</option>
-        ))}
-      </select>
+      <RSelect id={`o-${k}`} label={label} block value={String(v[k] ?? '')} onChange={(x) => set(k, x)} options={opts} />
     </div>
   );
   return (
@@ -244,12 +240,7 @@ export function OutputButton({ run, variant = 'primary' }: { run: StageRun; vari
                 {cfg.grade ? (
                   <div className="form-field">
                     <label className="field-label" htmlFor={`o-grade${i}`}>Grade</label>
-                    <select id={`o-grade${i}`} className="input" value={String(v[`grade${i}`] ?? '')} onChange={(e) => set(`grade${i}`, e.target.value)}>
-                      <option value="">Choose grade…</option>
-                      {(run.stage === 'G2' ? ['A1', 'B1', 'A2', 'B2'] : ['Bold', 'Medium', 'Small']).map((g) => (
-                        <option key={g} value={g}>{g}</option>
-                      ))}
-                    </select>
+                    <RSelect id={`o-grade${i}`} label="Grade" block placeholder="Choose grade…" value={String(v[`grade${i}`] ?? '')} onChange={(x) => set(`grade${i}`, x)} options={(run.stage === 'G2' ? ['A1', 'B1', 'A2', 'B2'] : ['Bold', 'Medium', 'Small']).map((g) => ({ value: g, label: g }))} />
                   </div>
                 ) : (
                   <span />
@@ -447,13 +438,7 @@ export default function StageWork() {
     <RPage title={`My stage · ${stageName(stage)}`} description="Receive the material sent to you, start, record what came out, and send it onward.">
       <div className="rt-row">
         <label className="field-label" htmlFor="stage-pick">Stage</label>
-        <select id="stage-pick" className="input" style={{ maxWidth: 260 }} value={stage} onChange={(e) => navigate(`${wsBase(db.session.workspaceId)}/production/stage?stage=${e.target.value}`)}>
-          {allowed.map((code) => (
-            <option key={code} value={code}>
-              {stageInfo(code).label}
-            </option>
-          ))}
-        </select>
+        <RSelect id="stage-pick" label="Stage" value={stage} onChange={(v) => navigate(`${wsBase(db.session.workspaceId)}/production/stage?stage=${v}`)} options={allowed.map((code) => ({ value: code, label: stageInfo(code).label }))} />
         <span className="muted">
           Owner <Who id={info.owner} /> · backup <Who id={info.backup} />
         </span>

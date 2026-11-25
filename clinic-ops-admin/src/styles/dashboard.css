@@ -361,8 +361,10 @@
   min-width: 0;
   container-type: inline-size;
   padding: 10px 14px 11px;
-  border: 1px solid var(--s-border);
-  border-radius: var(--c-radius-panel);
+  /* skill rules 100 / 102b (latest): 14px corner, no border — a 1px shadow at 3% only */
+  border: 0;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
+  border-radius: var(--c-radius-kpi);
   background: var(--s-panel);
   color: var(--s-text);
   text-decoration: none;
@@ -484,8 +486,10 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  border: 1px solid var(--s-border);
-  border-radius: var(--c-radius-panel);
+  /* skill rules 100 / 102b (latest): 14px corner, no border — a 1px shadow at 3% only */
+  border: 0;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
+  border-radius: var(--c-radius-kpi);
   background: var(--s-panel);
 }
 .dv-card-head {
@@ -2742,4 +2746,63 @@ button.dv-col:hover .dv-col-bar {
 }
 .drp-sum strong {
   font-weight: var(--fw-semibold);
+}
+
+/* Needs Attention: filter icon in the header (checkbox list) instead of chips (owner, 2026-11-25) */
+.dv-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dv-att-filter.is-filtered {
+  color: var(--s-accent-text);
+  background: var(--s-accent-subtle);
+}
+.dv-att-pop {
+  padding: 6px;
+}
+.dv-att-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 0 8px;
+  border-radius: var(--c-radius-control);
+  font-size: var(--fs-supportive);
+  cursor: pointer;
+}
+.dv-att-row:hover {
+  background: var(--s-hover);
+}
+.dv-att-row.is-all {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--s-border);
+  border-radius: var(--c-radius-control) var(--c-radius-control) 0 0;
+  font-weight: var(--fw-medium);
+}
+.dv-att-count {
+  margin-left: auto;
+  color: var(--s-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===================== Skill rule 102b (latest decision) — card pages sit on the soft canvas; dashboard cards
+   are pure white with NO border, only a 1px shadow at ~3%. Applies to the clinic dashboard and the Rentio owner
+   overview (.rt-owner inside the Rentio page). Overrides the earlier 1px-edge block above. ===================== */
+.app .canvas:has(.rt-owner),
+.page.rt-page:has(> .rt-owner) {
+  background: var(--c-canvas) !important;
+}
+.dv-stat,
+.dv-card {
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgba(20, 20, 30, 0.03);
+}
+.dv-stat.is-link:hover {
+  border-color: transparent;
+}
+:root[data-theme='dark'] .dv-stat,
+:root[data-theme='dark'] .dv-card {
+  border-color: transparent;
 }

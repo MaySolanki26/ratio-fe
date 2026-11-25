@@ -1,4 +1,6 @@
-import { useState, type CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
+import { IconButton } from '../primitives/Button';
+import { Popover } from '../primitives/overlay';
 import { Link } from 'react-router-dom';
 import { cx } from '../../lib/format';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
@@ -546,10 +548,11 @@ export interface ActionKind {
  * Referrals · Approvals · Tasks, each with its count). "All" shows a fair mix, most serious first. Max 6 rows;
  * every row opens its record in a new tab.
  */
-export function ActionTable({ kinds, mixed, emptyText, limit = 6 }: { kinds: ActionKind[]; mixed: ActionRow[]; emptyText: string; limit?: number }) {
-  const [only, setOnly] = useState<string | null>(null);
+export function ActionTable({ kinds, mixed, emptyText, limit = 6, selected = null }: { kinds: ActionKind[]; mixed: ActionRow[]; emptyText: string; limit?: number; /** kinds ticked in the card's filter (null = all) */ selected?: string[] | null }) {
   const visible = kinds.filter((k) => k.count > 0);
-  const rows = (only ? visible.find((k) => k.key === only)?.rows ?? [] : mixed).slice(0, limit);
+  const picked = selected ? visible.filter((k) => selected.includes(k.key)) : visible;
+  // all kinds → the fair mix; some → their rows, most serious first
+  const rows = (picked.length === visible.length ? mixed : picked.flatMap((k) => k.rows).sort((a, b) => (a.tone === b.tone ? 0 : a.tone === 'danger' ? -1 : b.tone === 'danger' ? 1 : 0))).slice(0, limit);
   if (!visible.length) {
     return (
       <p className="dv-empty is-ok">
@@ -560,18 +563,8 @@ export function ActionTable({ kinds, mixed, emptyText, limit = 6 }: { kinds: Act
   }
   return (
     <div className="dv-pad">
-      <div className="dv-attention-groups" role="group" aria-label="Show kind">
-        <button type="button" className={cx('dv-attention-group', !only && 'is-on')} aria-pressed={!only} onClick={() => setOnly(null)}>
-          All
-        </button>
-        {visible.map((k) => (
-          <button key={k.key} type="button" className={cx('dv-attention-group', only === k.key && 'is-on')} aria-pressed={only === k.key} onClick={() => setOnly(only === k.key ? null : k.key)}>
-            {k.label}
-            <span>{k.count}</span>
-          </button>
-        ))}
-      </div>
-      <table className="dv-table is-compact">
+      {!rows.length ? <p className="dv-empty">Nothing to show — tick a kind in the filter.</p> : null}
+      <table className="dv-table is-compact" hidden={!rows.length}>
         <thead>
           <tr>
             <th>Item</th>
@@ -605,5 +598,41 @@ export function ActionTable({ kinds, mixed, emptyText, limit = 6 }: { kinds: Act
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * Needs Attention filter (owner, 2026-11-25): a filter icon in the card header; its popover lists the kinds as
+ * checkboxes with their counts (Invoices 193 · Referrals 3 · Approvals 1 · Tasks …) plus "Select all".
+ */
+export function AttentionFilter({ kinds, selected, onChange }: { kinds: ActionKind[]; selected: string[] | null; onChange: (next: string[] | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  const visible = kinds.filter((k) => k.count > 0);
+  const on = (key: string) => !selected || selected.includes(key);
+  const filtered = !!selected && selected.length < visible.length;
+  const toggle = (key: string) => {
+    const cur = selected ?? visible.map((k) => k.key);
+    const next = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key];
+    onChange(next.length === visible.length ? null : next);
+  };
+  if (!visible.length) return null;
+  return (
+    <>
+      <IconButton ref={ref} icon="filter" label={filtered ? `Filter — ${selected!.length} of ${visible.length} kinds shown` : 'Filter kinds'} pressed={filtered} onClick={() => setOpen((o) => !o)} aria-haspopup="dialog" aria-expanded={open} className={cx('dv-att-filter', filtered && 'is-filtered')} />
+      <Popover open={open} onClose={() => setOpen(false)} anchor={ref} label="Show kinds" width={240} align="end" className="dv-att-pop">
+        <label className="dv-att-row is-all">
+          <input type="checkbox" checked={!selected} ref={(el) => { if (el) el.indeterminate = filtered && selected!.length > 0; }} onChange={() => onChange(selected ? null : [])} />
+          <span>Select all</span>
+        </label>
+        {visible.map((k) => (
+          <label key={k.key} className="dv-att-row">
+            <input type="checkbox" checked={on(k.key)} onChange={() => toggle(k.key)} />
+            <span>{k.label}</span>
+            <span className="dv-att-count">{k.count}</span>
+          </label>
+        ))}
+      </Popover>
+    </>
   );
 }

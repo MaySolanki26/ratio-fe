@@ -101,7 +101,7 @@ export function RolesList() {
         count={`${rows.length} ${rows.length === 1 ? 'role' : 'roles'}`}
         info="These rules are enforced by the in-browser service layer so the prototype behaves realistically. They are not a security boundary — a production build must enforce them on the server."
         actions={
-          <Button icon="plus" onClick={() => navigate(rolePath('new'))} disabledReason={manage ? undefined : `${actor.role.label} cannot manage roles`}>
+          <Button variant="primary" icon="plus" onClick={() => navigate(rolePath('new'))} disabledReason={manage ? undefined : `${actor.role.label} cannot manage roles`}>
             Create role
           </Button>
         }
@@ -176,7 +176,7 @@ export function RolePage() {
       />
       {builtIn && (
         <InlineAlert tone="info">
-          Built-in role from the clinic pack — read-only. {canManageRoles(actor) ? 'Duplicate it to make a custom version.' : ''}
+          Built-in role from the domain pack — read-only. {canManageRoles(actor) ? 'Duplicate it to make a custom version.' : ''}
         </InlineAlert>
       )}
       <section className="role-card">

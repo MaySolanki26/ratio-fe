@@ -145,7 +145,7 @@ export default function Journey() {
                       <span className="rt-step-no">{i + 1}</span>
                       <div>
                         <div className="rt-step-title">{t}</div>
-                        <div className="rt-step-detail" title={d}>{d}</div>
+                        <div className="rt-step-detail" data-tooltip={d}>{d}</div>
                       </div>
                       <PageLink to={to}>Open</PageLink>
                     </li>
@@ -181,7 +181,7 @@ export default function Journey() {
                   <span className="rt-step-no">{st.id}</span>
                   <div>
                     <div className="rt-step-title">{st.title}</div>
-                    <div className="rt-step-detail" title={st.detail}>
+                    <div className="rt-step-detail" data-tooltip={st.detail}>
                       {st.actors.map(userName).join(', ')} · {st.detail}
                     </div>
                   </div>

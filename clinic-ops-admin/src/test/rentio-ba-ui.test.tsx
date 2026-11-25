@@ -3,6 +3,7 @@
  * repack record → QC release, multi-stop dispatch → stop outcomes by two distributors, incident create →
  * close gating, replenishment accept → prefilled order form; plus the owner charts.
  */
+import { fieldValue, setField } from './customInputs';
 import { act as rtlAct, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import App from '../App';
@@ -35,7 +36,7 @@ function as(user: string, page: string) {
 }
 const dialog = () => screen.getByRole('dialog');
 const field = (label: RegExp) => within(dialog()).getByLabelText(label) as HTMLInputElement;
-const set = (label: RegExp, value: string) => fireEvent.change(field(label), { target: { value } });
+const set = (label: RegExp, value: string) => setField(field(label), value);
 const click = (name: RegExp, scope: HTMLElement = document.body) => rtlAct(() => void fireEvent.click(within(scope).getByRole('button', { name })));
 
 describe('BA-1 repack through Godowns & stacks', () => {
@@ -169,7 +170,7 @@ describe('BA-4 replenishment through the suggestions page', () => {
     const href = link.getAttribute('href')!;
     as('u_kiran', href.replace(`${WS}/`, ''));
     expect(screen.getByRole('dialog')).toBeTruthy();
-    expect(field(/Distributor/).value).toBe('D04');
+    expect(fieldValue(field(/Distributor/))).toBe('D04');
     expect(getDb().rentio!.orders.length).toBe(orders);
   });
 });
@@ -183,8 +184,10 @@ describe('owner charts', () => {
     const del = screen.getByRole('figure', { name: 'Delivery outcome by distributor' });
     expect(del.textContent).toMatch(/Received good/);
     expect(within(fig).getByRole('table')).toBeTruthy();
-    // decisions come first
+    // owner 2026-11-25: the charts come straight after the KPIs, before decisions
     const order = [...document.querySelectorAll('section[aria-label]')].map((x) => x.getAttribute('aria-label'));
-    expect(order.indexOf('Owner charts')).toBeGreaterThan(order.indexOf(order.find((x) => /decision|Needs you/i.test(x ?? '')) ?? ''));
+    const decisions = order.indexOf(order.find((x) => /decision|Needs you/i.test(x ?? '')) ?? '');
+    expect(order.indexOf('Owner charts')).toBeGreaterThanOrEqual(0);
+    expect(order.indexOf('Owner charts')).toBeLessThan(decisions);
   });
 });

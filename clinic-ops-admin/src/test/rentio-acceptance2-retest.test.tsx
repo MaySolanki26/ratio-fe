@@ -4,6 +4,7 @@
  *  #6 an immediate same-minute receipt after a godown issue stamped mid-minute is accepted;
  *     strict ordering still refuses earlier minutes and future times; previews never show NaN.
  */
+import { fieldValue, setField } from './customInputs';
 import { act as rtlAct, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
@@ -106,7 +107,7 @@ describe('#6 — minute/second boundary on an immediate same-minute handover', (
     expect(dlg.textContent).not.toMatch(/NaN/);
     // the earliest allowed time shows seconds, so it never reads "HH:mm is before HH:mm"
     expect(dlg.textContent).toMatch(/Earliest allowed: .*:37 IST/);
-    expect((within(dlg).getByLabelText(/When it arrived/) as HTMLInputElement).value).toBe(toLocalInput(issueAt));
+    expect(fieldValue(within(dlg).getByLabelText(/When it arrived/))).toBe(toLocalInput(issueAt));
     fireEvent.click(within(dlg).getByRole('button', { name: 'Confirm receipt' }));
     await rtlAct(async () => {});
     const ho = getDb().rentio!.handovers.find((h) => h.lotId === 'RT-004')!;
@@ -129,10 +130,10 @@ describe('#6 — minute/second boundary on an immediate same-minute handover', (
     fireEvent.click(within(row).getByRole('button', { name: /Receive/ }));
     const dlg = document.querySelector('.drawer, .dialog') as HTMLElement;
     const prev = toLocalInput(new Date(Date.parse(issueAt) - MIN).toISOString());
-    fireEvent.change(within(dlg).getByLabelText(/When it arrived/), { target: { value: prev } });
+    setField(within(dlg).getByLabelText(/When it arrived/), prev);
     fireEvent.click(within(dlg).getByRole('button', { name: 'Confirm receipt' }));
     expect(dlg.textContent).toMatch(/Time not possible/);
-    expect((within(dlg).getByLabelText(/When it arrived/) as HTMLInputElement).value).toBe(prev);
+    expect(fieldValue(within(dlg).getByLabelText(/When it arrived/))).toBe(prev);
     expect(getDb().rentio!.handovers.find((h) => h.lotId === 'RT-004')!.received).toBe(0);
     r.unmount();
   });

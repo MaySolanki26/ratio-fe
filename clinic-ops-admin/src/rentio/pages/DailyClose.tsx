@@ -1,6 +1,7 @@
 /** Daily close: summary prefilled from postings; open work is carried forward explicitly. */
 import { useState } from 'react';
 import { InlineAlert } from '../../components/primitives/feedback';
+import { DatePicker } from '../../components/primitives/DatePicker';
 import { Button } from '../../components/primitives/Button';
 import { confirmDailyClose } from '../../domain/rentio/close';
 import { STAGES } from '../../domain/rentio/data';
@@ -11,7 +12,7 @@ import { newKey, useAct, useR } from '../store';
 import { CloseGraphics } from './_graphA';
 import { readScope, scopedHandovers, scopedRuns } from '../../domain/rentio/scope';
 import '../../styles/rentio-ux-c.css';
-import { Details, ImplNote, Kpi, KpiRow, LotLink, Panel, Ref, RPage, Status, Table, Who, fmtTime } from '../ui';
+import { Details, ImplNote, Kpi, KpiRow, LotLink, Panel, Ref, RPage, Status, Table, Who, fmtTime, RSelect } from '../ui';
 
 const istDate = (iso: string) => new Date(Date.parse(iso) + 330 * 60_000).toISOString().slice(0, 10);
 
@@ -47,14 +48,9 @@ export default function DailyClose() {
         <div className="rt-headrow">
           <p className="rt-intro">Open work is carried to the next shift, never marked done.</p>
           <label className="field-label" htmlFor="dc-stage">Scope</label>
-          <select id="dc-stage" className="input rt-input-narrow" value={stage} onChange={(e) => setStage(e.target.value)}>
-            {(sc.factory || stageChoices.length > 1) && <option value="ALL">{sc.factory ? 'Whole factory' : 'All my stages'}</option>}
-            {stageChoices.map((st) => (
-              <option key={st.code} value={st.code}>{st.label}</option>
-            ))}
-          </select>
+          <RSelect id="dc-stage" label="Scope" value={stage} onChange={setStage} options={[...(sc.factory || stageChoices.length > 1 ? [{ value: 'ALL', label: sc.factory ? 'Whole factory' : 'All my stages' }] : []), ...stageChoices.map((st) => ({ value: st.code, label: st.label }))]} />
           <label className="field-label" htmlFor="dc-date">Date</label>
-          <input id="dc-date" className="input rt-input-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <DatePicker id="dc-date" label="Date" value={date} clearable={false} onChange={(v) => v && setDate(v)} />
         </div>
       }
     >

@@ -7,7 +7,7 @@ import { SAMPLE_ATTENDANCE_CSV } from '../../domain/rentio/fixtures';
 import * as P from '../../domain/rentio/people';
 import { fmtINR, sum } from '../../domain/rentio/units';
 import { newKey, useAct, useR } from '../store';
-import { ImplNote, Kpi, KpiRow, Panel, Ref, RPage, Sim, Status, Table, fmtTime, useFocusId } from '../ui';
+import { ImplNote, Kpi, KpiRow, Panel, Ref, RPage, Sim, Status, Table, fmtTime, useFocusId, RSelect } from '../ui';
 import { HoursChart } from './_graphB';
 import { PageTabs, usePageTab } from './_uxA';
 
@@ -58,11 +58,7 @@ export default function Attendance() {
       <PageTabs
         label="Attendance sections"
         extra={
-          <select className="input" aria-label="Period" value={period} onChange={(e) => setPeriod(e.target.value)}>
-            {(periods.length ? periods : [period]).map((p) => (
-              <option key={p}>{p}</option>
-            ))}
-          </select>
+          <RSelect label="Period" value={period} onChange={setPeriod} options={(periods.length ? periods : [period]).map((p) => ({ value: p, label: p }))} />
         }
         value={tab}
         onChange={setTab}
@@ -135,7 +131,7 @@ export default function Attendance() {
             rows={emps.map((e) => ({ e, a: att[e.id] }))}
             rowKey={(r) => r.e.id}
             cols={[
-              { key: 'n', label: 'Employee', render: (r) => <span title={String(r.e.id)}>{String(r.e.name)}</span> },
+              { key: 'n', label: 'Employee', render: (r) => <span data-tooltip={String(r.e.id)}>{String(r.e.name)}</span> },
               { key: 's', label: 'Shift', render: (r) => (r.e.shift === 'night' ? 'Night' : 'Day') },
               { key: 'd', label: 'Days', num: true, render: (r) => r.a?.days.size ?? 0 },
               { key: 'h', label: 'Hours', num: true, render: (r) => (r.a ? r.a.hours.toFixed(1) : '0') },

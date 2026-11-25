@@ -2307,7 +2307,8 @@ td.col-actions {
   right: 0;
   width: 6px;
   cursor: col-resize;
-  border-right: 1px solid var(--s-border); /* short header divider between columns (none after the last data column) */
+  /* Skill rule 62 (latest): no column dividers — the resize line shows only while hovering a header */
+  border-right: 1px solid transparent;
 }
 .grid th:hover .col-resize {
   border-right-color: var(--s-border-strong);
@@ -2926,8 +2927,7 @@ td.is-editing {
 .detail-section-title {
   font-size: var(--fs-supportive);
   font-weight: var(--fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  text-transform: capitalize; /* Title Case (skill rule 63e), not capitals */
   color: var(--s-text-muted);
   margin-bottom: 8px;
 }
@@ -5273,7 +5273,7 @@ html:root[data-palette][data-theme='dark'] {
 .color-field .input {
   flex: 1;
   min-width: 0;
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-family: var(--font-mono); /* = Geist (skill rule 69a) */
   text-transform: lowercase;
 }
 .color-swatch {
@@ -8991,7 +8991,12 @@ td.is-editable:hover > .cell {
 .grid thead .th-label,
 :is(.mini-table, .li-table, .perm-table) thead th,
 .form-section-title,
-.empty-title {
+.empty-title,
+.detail-section-title,
+.rt-panel-title,
+.rt-h3,
+.rt-table thead th,
+.dv-card-title {
   text-transform: capitalize;
 }
 
@@ -9573,7 +9578,7 @@ a.kpi:hover {
 .dash-card {
   min-width: 0;
   border: 1px solid var(--s-border);
-  border-radius: var(--c-radius-panel);
+  border-radius: var(--c-radius-kpi);
   background: var(--s-panel);
   padding: 4px 0 8px;
 }
@@ -10079,7 +10084,7 @@ a.kpi:hover {
 .kpi {
   gap: 6px;
   padding: 14px 16px;
-  border-radius: var(--c-radius-panel);
+  border-radius: var(--c-radius-kpi);
 }
 .kpi-row {
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -11807,4 +11812,17 @@ html:root[data-palette][data-theme='dark'] {
 }
 .toast[class*='tone-'] .toast-close:hover {
   opacity: 1;
+}
+
+/* Skill rule 67a: a person shown as a value gets a small avatar before the name */
+.person-name-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  vertical-align: middle;
+  min-width: 0;
+}
+.person-name-inline > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }

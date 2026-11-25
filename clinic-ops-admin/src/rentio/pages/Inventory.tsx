@@ -8,7 +8,7 @@ import { bucketOf, fmtLotQty, type Bucket } from '../../domain/rentio/views';
 import { useR } from '../store';
 import { InventoryGraphics } from './_graphA';
 import { wsBase } from '../../lib/routes';
-import { ImplNote, LotLink, Panel, Qty, Reason, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
+import { ImplNote, LotLink, Panel, Qty, Reason, RPage, Status, Table, fmtTime, useFocusId, RSelect } from '../ui';
 import { PageTabs, usePageTab, useShowMore } from './_uxA';
 import '../../styles/rentio-ux-b.css';
 
@@ -81,14 +81,7 @@ export default function Inventory() {
               meta={`${rows.length} position(s)`}
               actions={
                 <div className="rt-row rt-filterbar">
-                  <select className="input" aria-label="Filter by where the stock is" value={bucket} onChange={(e) => setBucket(e.target.value as Bucket | '')}>
-                    <option value="">Everywhere</option>
-                    {BUCKETS.filter((b) => b.id !== 'stores').map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.label}
-                      </option>
-                    ))}
-                  </select>
+                  <RSelect label="Filter by where the stock is" value={bucket} onChange={(v) => setBucket(v as Bucket | '')} options={[{ value: '', label: 'Everywhere' }, ...BUCKETS.filter((b) => b.id !== 'stores').map((b) => ({ value: b.id, label: b.label }))]} />
                   <input className="input" type="search" placeholder="Search lot, grade, location" aria-label="Search positions" value={q} onChange={(e) => setQ(e.target.value)} />
                 </div>
               }

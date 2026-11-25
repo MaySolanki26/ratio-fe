@@ -5,6 +5,11 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../components/primitives/Button';
+import { hueOf, initialsOf } from '../components/primitives/People';
+import { GridFooter, PAGE_SIZES } from '../components/resource/GridFooter';
+import { DatePicker } from '../components/primitives/DatePicker';
+import { SelectMenu } from '../components/primitives/SelectMenu';
+import { EmptyValue } from '../components/primitives/display';
 import { EmptyState, InlineAlert, StatusChip } from '../components/primitives/feedback';
 import { Icon } from '../components/primitives/Icon';
 import { Dialog, Drawer, FormDialog } from '../components/primitives/overlay';
@@ -26,7 +31,12 @@ import { type ActResult, newKey, useR } from './store';
 
 const IST: Intl.DateTimeFormatOptions = { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false };
 export const fmtTime = (iso?: string) => (iso ? new Date(iso).toLocaleString('en-IN', IST) : '—');
-export const fmtDay = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+/** Date in the project format "16 Oct, 2026" (skill rule 14), IST. */
+export const fmtDay = (iso?: string) => {
+  if (!iso) return '—';
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' }).formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${p.day} ${p.month}, ${p.year}`;
+};
 /** ISO → value for <input type="datetime-local"> in IST. */
 export const toLocalInput = (iso: string) => {
   const d = new Date(Date.parse(iso) + 330 * 60_000);
@@ -131,7 +141,7 @@ export function Kpi({ label, value, note, tone, to, testId }: { label: string; v
     <>
       <span className="rt-kpi-label">{label}</span>
       <span className={cx('rt-kpi-value', tone && `tone-text-${tone}`)} data-testid={testId}>
-        {value}
+        {orNA(value)}
       </span>
       {note && <span className="rt-kpi-note">{note}</span>}
     </>
@@ -146,6 +156,22 @@ export function Kpi({ label, value, note, tone, to, testId }: { label: string; v
 }
 
 export const KpiRow = ({ children }: { children: ReactNode }) => <div className="rt-kpis">{children}</div>;
+
+/** Missing value → the shared grey italic "N/A" (skill rule 15). '—' / empty string count as missing. */
+export const orNA = (v: ReactNode): ReactNode => (v === null || v === undefined || v === false || v === '' || v === '—' ? <EmptyValue /> : v);
+
+/** A rate with nothing to divide yet keeps "—" with a note (skill rule 100f), never N/A, 0 or a fake figure. */
+export const NoRate = () => <span aria-label="Not computable yet">—</span>;
+
+/** The shared custom dropdown for Rentio screens — never a native <select> (skill rule 9). */
+export function RSelect({ id, label, value, options, onChange, placeholder, block, className }: { id?: string; label: string; value: string; options: { value: string; label: string }[]; onChange: (v: string) => void; placeholder?: string; block?: boolean; className?: string }) {
+  return <SelectMenu id={id} label={label} value={value} options={options} onChange={onChange} placeholder={placeholder} block={block} className={className} />;
+}
+
+/** The shared date-time picker with exact minutes (stage events are recorded to the minute). */
+export function RDateTime({ id, label, value, onChange }: { id?: string; label: string; value: string; onChange: (v: string) => void }) {
+  return <DatePicker id={id} label={label} withTime minuteStep={1} block value={value || null} onChange={(v) => onChange(v ?? '')} />;
+}
 
 export interface Col<T> {
   key: string;
@@ -164,6 +190,16 @@ export function useFocusId(): string | undefined {
 export function Table<T>({ cols, rows, rowKey, empty = 'Nothing to show.', caption, rowClass, focus }: { cols: Col<T>[]; rows: T[]; rowKey: (r: T) => string; empty?: string; caption?: string; rowClass?: (r: T) => string | undefined; /** record id to highlight and scroll to */ focus?: string }) {
   const wrap = useRef<HTMLDivElement>(null);
   const hit = focus ? rows.some((r) => rowKey(r) === focus) : false;
+  // Skill rule 78: every table ends with the common footer (range · pages · rows per page).
+  const [size, setSize] = useState(PAGE_SIZES[0]);
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(rows.length / size));
+  const focusIdx = focus ? rows.findIndex((r) => rowKey(r) === focus) : -1;
+  useEffect(() => {
+    if (focusIdx >= 0) setPage(Math.floor(focusIdx / size));
+  }, [focusIdx, size]);
+  const cur = Math.min(page, pageCount - 1);
+  const shown = rows.slice(cur * size, (cur + 1) * size);
   useEffect(() => {
     if (!hit) return;
     const el = wrap.current?.querySelector<HTMLElement>('tr.is-focus');
@@ -185,31 +221,33 @@ export function Table<T>({ cols, rows, rowKey, empty = 'Nothing to show.', capti
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {shown.map((r) => (
             <tr key={rowKey(r)} className={cx(rowClass?.(r), focus && rowKey(r) === focus && 'is-focus')} tabIndex={focus && rowKey(r) === focus ? -1 : undefined} aria-current={focus && rowKey(r) === focus ? 'true' : undefined}>
               {cols.map((c) => (
                 <td key={c.key} className={cx(c.num && 'num')} data-label={c.label}>
-                  {c.render(r)}
+                  {orNA(c.render(r))}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
+      <GridFooter page={cur} pageCount={pageCount} pageSize={size} total={rows.length} noun="items" onPage={setPage} onSize={(n) => { setSize(n); setPage(0); }} />
     </div>
   );
 }
 
 // ---------------------------------------------------------------- quantity, basis, status
 
-const BASIS_TONE: Record<Basis, Tone> = { Actual: 'success', Counted: 'info', Carried: 'warning' };
+// Owner decision 2026-11-25: measurement basis is not a status — neutral grey (skill rules 41 / 76c).
+const BASIS_TONE: Record<Basis, Tone> = { Actual: 'neutral', Counted: 'neutral', Carried: 'neutral' };
 export const BasisChip = ({ basis }: { basis: Basis }) => <StatusChip label={basis} tone={BASIS_TONE[basis]} />;
 export const Qty = ({ g, strong }: { g: Grams; strong?: boolean }) => <span className={cx('rt-qty', strong && 'is-strong')}>{fmtKg(g)}</span>;
 
 const STATUS_TONE: Record<string, Tone> = {
   open: 'info',
   awaiting: 'warning',
-  partial: 'danger',
+  partial: 'warning', // an accountable residual needs attention; it is not a failure (owner, 2026-11-25)
   received: 'success',
   settled: 'neutral',
   running: 'info',
@@ -299,8 +337,17 @@ export const Reason = ({ text, tone }: { text: string; tone?: 'warning' | 'dange
     {text}
   </span>
 );
-export const Ref = ({ children }: { children: ReactNode }) => <code className="rt-ref">{children}</code>;
-export const Who = ({ id }: { id?: string }) => <span className="rt-who">{userName(id)}</span>;
+export const Ref = ({ children }: { children: ReactNode }) => <span className="rt-ref">{children}</span>;
+/** A person: small initials avatar (skill rule 67a) + name. Initials are drawn by CSS so the text stays just the name. */
+export const Who = ({ id }: { id?: string }) => {
+  const name = userName(id);
+  return (
+    <span className="rt-who">
+      {id && <span className="img-tile img-tile-initials is-circle rt-who-avatar" data-initials={initialsOf(name)} style={{ width: 18, height: 18, ['--avatar-h' as string]: hueOf(name) }} aria-hidden="true" />}
+      {name}
+    </span>
+  );
+};
 
 /** Gate a control by capability; explains the restriction instead of hiding it. */
 export function useCan() {
@@ -429,18 +476,11 @@ function FieldInput({ f, value, onChange }: { f: FieldSpec; value: string | bool
       break;
     case 'select':
       input = (
-        <select id={id} className="input" value={String(value ?? '')} onChange={(e) => onChange(e.target.value)}>
-          <option value="">Choose…</option>
-          {f.options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <RSelect id={id} label={f.label} block placeholder="Choose…" value={String(value ?? '')} options={f.options} onChange={onChange} />
       );
       break;
     case 'datetime':
-      input = <input id={id} className="input" type="datetime-local" min={f.min ? toLocalInput(f.min) : undefined} max={f.max ? toLocalInput(f.max) : undefined} value={String(value ?? '')} onChange={(e) => onChange(e.target.value)} />;
+      input = <RDateTime id={id} label={f.label} value={String(value ?? '')} onChange={onChange} />;
       break;
     case 'checkbox':
       return (
@@ -665,7 +705,7 @@ export function LotDrawer({ id, onClose }: { id: string; onClose: () => void }) 
             </>
           ) : null}
           <dt>Next step</dt>
-          <dd>{lot.nextStage ? `${lot.nextStage}${(lot.pass ?? 1) > 1 ? ` (pass ${lot.pass})` : ''}` : '—'}</dd>
+          <dd>{lot.nextStage ? `${lot.nextStage}${(lot.pass ?? 1) > 1 ? ` (pass ${lot.pass})` : ''}` : <EmptyValue />}</dd>
           <dt>Created</dt>
           <dd>
             {fmtTime(lot.createdAt)} by {userName(lot.createdBy)}
@@ -691,9 +731,9 @@ export function LotDrawer({ id, onClose }: { id: string; onClose: () => void }) 
           <p className="muted">
             Parents: {lot.parents.length ? lot.parents.map((p) => `${p.lotId} (${fmtKg(p.qty)})`).join(', ') : 'none — origin lot'}
             <br />
-            Ancestors: {anc.join(', ') || '—'}
+            Ancestors: {anc.join(', ') || <EmptyValue />}
             <br />
-            Descendants: {desc.join(', ') || '—'}
+            Descendants: {desc.join(', ') || <EmptyValue />}
           </p>
         </Details>
         <Details summary={`Movement history (${mv.length})`}>

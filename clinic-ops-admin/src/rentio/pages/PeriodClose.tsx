@@ -59,7 +59,7 @@ export default function PeriodClose() {
           cols={[
             { key: 'p', label: 'Month', render: (l) => <strong>{l.period}</strong> },
             { key: 'b', label: 'Closed by', render: (l) => `${userName(l.by)} · ${fmtTime(l.at)}` },
-            { key: 's', label: 'Status', render: (l) => (l.reopened ? <span title={l.reopened.reason}><Status s="reopened" /> by {userName(l.reopened.by)}</span> : <Status s="closed" />) },
+            { key: 's', label: 'Status', render: (l) => (l.reopened ? <span data-tooltip={l.reopened.reason}><Status s="reopened" /> by {userName(l.reopened.by)}</span> : <Status s="closed" />) },
             {
               key: 'a',
               label: '',

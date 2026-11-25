@@ -13,7 +13,7 @@ export const initialsOf = (name: string) =>
     .slice(0, 2)
     .join('')
     .toUpperCase();
-const hueOf = (name: string) => [...name].reduce((h, c) => (h + c.charCodeAt(0) * 7) % 360, 0);
+export const hueOf = (name: string) => [...name].reduce((h, c) => (h + c.charCodeAt(0) * 7) % 360, 0);
 
 /**
  * Shared picture tile: shows the image when there is one, otherwise a soft coloured initials tile.
@@ -30,6 +30,16 @@ export function ImageTile({ src, name, size = 32, shape = 'rounded' }: { src?: s
 }
 
 /** One person: avatar + name — with a muted subtitle (e.g. role) as a second line when given. */
+/** A person as a value: small avatar (photo or initials) before the name (skill rule 67a). */
+export function PersonName({ name, src }: { name: string; src?: string | null }) {
+  return (
+    <span className="person-name-inline">
+      <ImageTile src={src} name={name} size={18} shape="circle" />
+      <span>{name}</span>
+    </span>
+  );
+}
+
 export function PersonChip({ name, src, subtitle }: { name: string; src?: string | null; subtitle?: string }) {
   if (!subtitle)
     return (

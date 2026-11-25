@@ -228,12 +228,13 @@
   --c-sidebar-bg: color-mix(in srgb, var(--s-text) 2.5%, var(--s-panel)); /* light grey sidebar surface (owner rule) */
   --c-sidebar-hover-bg: color-mix(in srgb, var(--s-text) 6%, var(--s-panel));
   --c-nav-row-h: 30px; /* owner override: tighter sidebar options (UAB default 34px) */
-  --c-control-h: var(--uab-control-h);
+  --c-control-h: 32px; /* skill rule 54c (latest): every control incl. form fields is 32px; touch stays 44px */
   /* Owner override: every compact button/input in the app is 32px (locked spec value is 36px) */
   --c-control-h-compact: 32px;
   --c-radius-control: var(--uab-radius-control);
   --c-radius-panel: var(--uab-radius-panel);
   --c-radius-dialog: var(--uab-radius-dialog);
+  --c-radius-kpi: 14px; /* skill rule 100: dashboard KPI / chart cards */
   --c-viewbar-h: var(--uab-view-tab-h);
   --c-inspector-w: var(--uab-inspector-width);
   --c-inspector-w-expanded: var(--uab-inspector-width-expanded);

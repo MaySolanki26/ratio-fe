@@ -188,7 +188,7 @@ export function FieldValue({
       return (
         <span className="num value-with-icon">
           <Icon name="f-money" size={14} className="value-icon" />
-          <span>{formatMoney(Number(value))}</span>
+          <span>{formatMoney(Number(value), field.currency)}</span>
         </span>
       );
     case 'number':

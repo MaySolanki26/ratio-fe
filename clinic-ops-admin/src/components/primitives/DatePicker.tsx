@@ -13,7 +13,7 @@ const pad = (n: number) => String(n).padStart(2, '0');
 /**
  * THE date picker for the whole project (owner rule: no native date/datetime inputs).
  * Value: "YYYY-MM-DD" or, with `withTime`, "YYYY-MM-DDTHH:mm" (clinic local time).
- * Calendar popover: ‹ month › navigation, Monday-first grid, today ring, selected accent fill.
+ * Calendar popover: ‹ month › navigation, Sunday-first grid, today ring, selected accent fill.
  * Keyboard: ←/→ day, ↑/↓ week, PageUp/PageDown month, Home/End week start/end, Enter select, Esc close.
  */
 export function DatePicker({
@@ -29,6 +29,7 @@ export function DatePicker({
   block,
   clearable = true,
   iconOnly = false,
+  minuteStep = 5,
 }: {
   value: string | null | undefined;
   onChange: (v: string | null) => void;
@@ -43,6 +44,8 @@ export function DatePicker({
   clearable?: boolean;
   /** Calendar icon button only (e.g. next to a date heading); the value is shown elsewhere. */
   iconOnly?: boolean;
+  /** Minutes offered in the time row (5 by default; 1 where exact event times matter, e.g. stage receipts). */
+  minuteStep?: number;
 }) {
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -128,6 +131,7 @@ export function DatePicker({
         type="button"
         className={iconOnly ? cx('icon-btn date-icon-btn', open && 'is-open') : cx('select-menu-trigger date-trigger', block && 'is-block', open && 'is-open', !value && 'is-placeholder')}
         aria-haspopup="dialog"
+        data-value={value ?? ''}
         aria-expanded={open}
         aria-label={`${label}: ${value ? display : 'not set'}`}
         aria-invalid={invalid || undefined}
@@ -173,7 +177,7 @@ export function DatePicker({
           <div className="dp-time">
             <span className="field-label">Time</span>
             <SelectMenu label="Hour" value={String(h12)} options={Array.from({ length: 12 }, (_, i) => ({ value: String(i + 1), label: pad(i + 1) }))} onChange={(v) => setTime(Number(v), mm, ampm)} searchable={false} />
-            <SelectMenu label="Minute" value={String(mm - (mm % 5))} options={Array.from({ length: 12 }, (_, i) => ({ value: String(i * 5), label: pad(i * 5) }))} onChange={(v) => setTime(h12, Number(v), ampm)} searchable={false} />
+            <SelectMenu label="Minute" value={String(mm - (mm % minuteStep))} options={Array.from({ length: Math.ceil(60 / minuteStep) }, (_, i) => ({ value: String(i * minuteStep), label: pad(i * minuteStep) }))} onChange={(v) => setTime(h12, Number(v), ampm)} searchable={minuteStep < 5} />
             <SelectMenu label="AM or PM" value={ampm} options={[{ value: 'AM', label: 'AM' }, { value: 'PM', label: 'PM' }]} onChange={(v) => setTime(h12, mm, v)} />
           </div>
         )}

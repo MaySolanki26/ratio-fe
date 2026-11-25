@@ -4,7 +4,7 @@
  * confirmations that must not reopen an accepted hand-off, raw supply timing on plant-local dates, and the
  * owner chart shortcut / placement.
  */
-import { act as rtlAct, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import App from '../App';
 import { useDomain } from '../domain/active';
@@ -271,20 +271,22 @@ describe('owner overview UI (#4 leak, #6 charts)', () => {
     }
   });
 
-  it('“View stock and delivery charts” sits in the header, moves focus to the charts, and charts follow Top risks', () => {
+  it('the header shortcut and intro line are hidden; the charts come straight after the KPIs (owner, 2026-11-25)', () => {
     as('u_owner', 'dashboard');
-    const link = screen.getByRole('link', { name: 'View stock and delivery charts' });
-    expect(link.getAttribute('href')).toBe('#owner-charts');
-    expect(link.closest('header, .page-header')).toBeTruthy();
-    rtlAct(() => void fireEvent.click(link));
-    expect(document.activeElement?.id).toBe('owner-charts');
+    expect(screen.queryByRole('link', { name: 'View stock and delivery charts' })).toBeNull();
+    expect(document.body.textContent).not.toContain('live from staff postings');
+    // the stock flow card is hidden; the production route is drawn as one line of stations
+    expect(screen.queryByRole('figure', { name: 'Where the stock is now' })).toBeNull();
+    expect(screen.getByRole('figure', { name: 'Production route — material at each stage' })).toBeTruthy();
     const charts = document.getElementById('owner-charts')!;
     expect(within(charts).getByRole('figure', { name: 'Factory finished stock by grade' })).toBeTruthy();
     expect(within(charts).getByRole('figure', { name: 'Delivery outcome by distributor' })).toBeTruthy();
     const order = [...document.querySelectorAll('section[aria-label]')].map((x) => x.getAttribute('aria-label'));
     const i = (n: string) => order.indexOf(n);
     expect(i('Needs your decision')).toBeLessThan(i('Top risks'));
-    expect(i('Owner charts')).toBe(i('Top risks') + 1);
+    // owner 2026-11-25: the four charts sit right after the KPI row, before decisions and risks
+    expect(i('Owner charts')).toBeGreaterThanOrEqual(0);
+    expect(i('Owner charts')).toBeLessThan(i('Needs your decision'));
     expect(i('Owner charts')).toBeLessThan(i('Replenishment to review'));
   });
 });

@@ -282,3 +282,33 @@ Page height at 1440×900, default view, in screens (measured by `docs/rentio/ux-
 No page is over 2.0 screens; no page scrolls horizontally; no console errors. Typecheck clean, 277/277 tests, build passes. One test step changed (BA-1: Ravi opens the Repack tab before "Record repack"); its assertions are unchanged. One graphics test no longer expects the open-exceptions chart on the overview, because the chart moved to Alerts.
 
 Not checked in this round: dark mode across all pages, phone width beyond the owner overview, and tablet width.
+
+## Owner overview redesign (2026-11-25)
+
+Owner overview (`src/rentio/pages/ControlTower.tsx`) now follows the reference admin template's dashboard pattern; no data or business rule changed.
+
+- Headline row (`StatGrid`/`StatCard`): raw toor, in processing, free to sell, at distributors, exceptions, orders at risk — numbers come from the same `stockFlow` nodes and ledger rows as the flow strip, Godowns and Inventory.
+- Needs your decision + Top risks as compact `DashCard` lists (severity icon, one meta line, Decide/Review action).
+- Charts: stock flow and production route (idle stages shrink, late stage outlined), finished stock by grade, delivery outcome, **Plant activity** trend (intake / stage output / dispatch kg per IST day for 14 days, from movements, reversed pairs excluded) and **Stock by location** donut.
+- Delivery promises as a plain table (no pager); money and delegated work moved out of "More detail" into its own card; runs, replenishment and incidents as cards.
+- Dashboard kit synced with the reference template: `AttentionFilter` + filter-aware `ActionTable` (clinic overview updated to match).
+- Checks: typecheck ✓ · 284/284 tests ✓ · build ✓ · browser check at 1440 px and 390 px (no console errors).
+
+## Skill alignment — latest decision wins (2026-11-25, branch `feature/skill-alignment-login-theme`)
+
+Where the skill (SKILL.md / design-system.md / UAB specs) repeats a rule with different values, the **latest** rule was applied to the app. The skill files themselves were not changed (owner choice). Owner exceptions: **login page is locked** (untouched); **times stay visible** in Rentio tables; default theme is **Rentio Heritage** (login colours).
+
+- **Theme:** new preset "Rentio Heritage" (accent `#a3162b`, rail `#3b1f12`; canvas derived from the accent ≈ `#f6f2f4`, a grey with a faint maroon tint, per rule 102a — changed from the login paper beige in a later edit) is Rentio's default (`AppDomain.defaultPalette`); users on the old Graphite default move once (`THEME_REV` 3); clinic keeps Graphite.
+- **Fonts:** Geist only — Geist Mono removed from `rentio.css` (lot IDs, refs, genealogy) and from `package.json`.
+- **Tables (`rentio/ui.tsx` `Table`, 106 uses):** black regular-weight headers, all columns left-aligned, 34px rows, common `GridFooter` (range · pages · rows per page; `?focus=` opens the right page); empty / "—" cells → shared grey "N/A" (rates with nothing to divide keep "—", rule 100f). Shared grid: no column dividers.
+- **No native controls:** 56 form selects + 11 page filters → custom `SelectMenu` (`RSelect`); date-time fields → `DatePicker` with exact minutes (`minuteStep`); 9 `title=` → global tooltip; `confirmDelete` never falls back to `window.confirm`.
+- **Shell / tokens:** all controls 32px (`--c-control-h`); KPI/chart cards 14px; Work inbox is the 3rd rail item, no badge; filter "Custom range" = one calendar (`DateRangeCalendar`); advanced AND/OR builder removed (OR/nested conditions from saved views stay applied, shown as "Also applied … Remove").
+- **Meaning:** money uses the field/project currency (₹ in Rentio); meaning-free masters (grade, location type, supplier category, shift, by-product) neutral, quarantine red; partial receipt amber; measurement basis grey; main page actions primary; small avatars before people (Rentio `Who`, audit, events, record drawer); Title Case titles/headers.
+- **Owner overview:** soft canvas behind the page, borderless 14px cards (rule 102b); promised dates "16 Oct, 2026" / N/A.
+- **Tests:** 5 UI tests now drive the custom controls through `src/test/customInputs.ts` (no test removed); new `rentio-theme.test.ts`. Typecheck ✓ · 284/284 tests ✓ · build ✓.
+- **Browser check (headless Chrome, 1440 px + 390 px):** owner overview, Stock by lot, Suppliers list + filter panel, New supplier drawer (as Kiran), My stage — 0 console errors, no sideways scroll on phone.
+- **Owner overview order (owner, 2026-11-25):** KPIs → Finished stock by grade | Delivery outcome (`#owner-charts`) → Plant activity | Stock by location → Needs your decision | Top risks → stock flow / production route → the rest. `rentio-owner-retest` and `rentio-ba-ui` now assert this order. 284/284 tests ✓, browser order verified.
+- **Not done / open:** phone placeholder in shared forms is US-format ("+1 555…"); old two-month `DateRangePicker` kept (own test) but unused by filters; unused advanced-builder CSS left in `app.css`.
+- Follow-up (same day): one chart language across Rentio. `ShareStrip` (part-to-whole) now draws the kit `DonutChart`; owner `StackedBars` reuse the shared `StackBars`; categories use the kit palette (`--rt-c1…5` → `--c-palette-1…5`), status colours use the kit dot colours; every `.rt-chart` card uses the kit card look (14px corner, 52px title row, thin rounded bars, round legend dots). Figures, legends, hover text and "Show as table" are unchanged. Kit chart marks (`--c-mark-*`) are defined on every `.rt-page`.
+- Rentio Heritage palette no longer forces the paper-beige canvas: the page background is the standard light grey with a small maroon tint (sign-in page keeps its own paper colour). Owner overview sits on that canvas with white cards. Checks: 284/284 tests ✓, build ✓, browser check of owner overview, yield report, Tally, stage board and presenter pages.
+- Owner overview, later the same day: header intro line and the "View stock and delivery charts" shortcut are commented out (charts now sit right under the KPI row); the "Where the stock is now" card is commented out (same figures stay in the KPI row and the Stock by location donut). The production route is redrawn as a **production line** (`src/rentio/ProductionLine.tsx`): stations on one line in route order, ring filled by share of the busiest stage, red/amber ring + icon for late/paused, idle stages as small dots, an animated line segment where a handover is arriving, and a split bar per busy stage (arriving · queued · running · on hold · ready). Vertical on phones. Same routeFlow + stageFunnel figures as Stage board. Tests adapted (header shortcut absent, stock card absent, route figure present): 284/284 ✓, build ✓, browser check 1440/390 px.

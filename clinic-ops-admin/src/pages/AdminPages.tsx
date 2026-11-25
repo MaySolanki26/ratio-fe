@@ -1,4 +1,6 @@
 import { type ReactNode, useState } from 'react';
+import { PersonName } from '../components/primitives/People';
+import { domain, workspaces } from '../domain/active';
 import { Link, useNavigate } from 'react-router-dom';
 import type { ChipStyle, MasterDefinition, RecordData, Tone } from '../metadata/types';
 import { cx } from '../lib/format';
@@ -613,7 +615,7 @@ export function AccessPage() {
   if (!can(actor, 'access.view')) return <NoAccess what="roles & access" />;
   return (
     <div className="page access-page">
-      <PageHeader title="Roles & access" description="Roles and what each one can see and do. Built-in roles ship with the clinic pack; custom roles are saved in this browser." crumbs={[{ label: 'Administration' }, { label: 'Roles & access' }]} />
+      <PageHeader title="Roles & access" description="Roles and what each one can see and do. Built-in roles ship with the domain pack; custom roles are saved in this browser." crumbs={[{ label: 'Administration' }, { label: 'Roles & access' }]} />
       {/* roles table → each role opens its permission page (owner rules 60, 65) */}
       <RolesList />
     </div>
@@ -686,7 +688,7 @@ export function AuditPage() {
             if (key === 'actorName')
               return (
                 <span className="cell-two">
-                  <span>{String(r.actorName)}</span>
+                  {r.actorName ? <PersonName name={String(r.actorName)} /> : <EmptyValue />}
                   <span className="muted small">
                     {a.actorRole}
                     {a.actorType !== 'user' ? ` · ${a.actorType}` : ''}
@@ -780,7 +782,7 @@ export function EventsPage() {
           actor={actor}
           onOpen={(id) => setSel(id)}
           rowActions={{ view: true, edit: false }}
-          renderCell={(key, r) => (key === 'eventType' ? <code>{String(r.eventType)}</code> : key === 'recordId' ? (r.recordId ? <span className="mono">{String(r.recordId)}</span> : <EmptyValue />) : key === 'delivery' ? <Badge tone="neutral">simulated</Badge> : undefined)}
+          renderCell={(key, r) => (key === 'eventType' ? <code>{String(r.eventType)}</code> : key === 'recordId' ? (r.recordId ? <span className="mono">{String(r.recordId)}</span> : <EmptyValue />) : key === 'delivery' ? <Badge tone="neutral">simulated</Badge> : key === 'actorName' ? (r.actorName ? <PersonName name={String(r.actorName)} /> : <EmptyValue />) : undefined)}
           rowMenu={(r) => [
             { id: 'show', label: 'Show envelope', icon: 'eye', onSelect: () => setSel(r.id) },
             { id: 'copy', label: 'Copy event ID', icon: 'copy', onSelect: () => (navigator.clipboard?.writeText(r.id).catch(() => {}), toast('Event ID copied', 'success')) },
@@ -876,12 +878,12 @@ export function SettingsPage() {
           <h2 className="panel-title">Workspace & locale</h2>
           <dl className="detail-list">
             <div className="detail-row">
-              <dt>Clinic time</dt>
-              <dd>Times are clinic wall-clock times (no timezone conversion in this prototype).</dd>
+              <dt>Local time</dt>
+              <dd>Times are the workspace's wall-clock times ({workspaces()[0]?.timezoneLabel ?? 'local'}; no timezone conversion in this prototype).</dd>
             </div>
             <div className="detail-row">
               <dt>Currency</dt>
-              <dd>USD — display formatting only; stored amounts are never converted.</dd>
+              <dd>{domain().currency} — display formatting only; stored amounts are never converted.</dd>
             </div>
             <div className="detail-row">
               <dt>Date & number format</dt>

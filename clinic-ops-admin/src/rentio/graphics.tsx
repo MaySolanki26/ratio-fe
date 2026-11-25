@@ -15,14 +15,15 @@ import type { RunEvent, StageRun } from '../domain/rentio/types';
 import { fmtDuration, fmtKg, type Grams, sum } from '../domain/rentio/units';
 import { Details } from './ui';
 import { StatusChip } from '../components/primitives/feedback';
+import { DonutChart } from '../components/dashboard';
 import type { Tone } from '../metadata/types';
 
 // ---------------------------------------------------------------- colours by job
 
-/** Categorical slots (fixed order, never cycled). */
+/** Categorical slots (fixed order, never cycled) — the dashboard kit's chart palette (--rt-c1…c5 map to --c-palette-1…5). */
 export const CAT = ['var(--rt-c1)', 'var(--rt-c2)', 'var(--rt-c3)', 'var(--rt-c4)', 'var(--rt-c5)'];
-/** Status meaning — reserved for state, always paired with a text label. */
-export const STATUS = { good: 'var(--s-success)', info: 'var(--s-info)', warn: 'var(--s-warning)', bad: 'var(--s-danger)', muted: 'var(--rt-neutral)', faint: 'var(--rt-neutral-2)' };
+/** Status meaning — reserved for state, always paired with a text label; the kit's chart dot colours. */
+export const STATUS = { good: 'var(--c-dot-success)', info: 'var(--c-palette-5)', warn: 'var(--c-dot-warning)', bad: 'var(--c-dot-danger)', muted: 'var(--rt-neutral)', faint: 'var(--rt-neutral-2)' };
 
 /** Where every kilogram of a stage run went (categories in this fixed order). */
 export const MASS_SEGS: Seg[] = [
@@ -133,7 +134,7 @@ export function StackBars({
             );
           })}
           <div className="rt-chart-axis" aria-hidden="true">
-            <span>0</span>
+            <span>{format(0)}</span>
             <span>{format(max)}</span>
           </div>
         </div>
@@ -184,9 +185,65 @@ export function Legend({ segs }: { segs: Seg[] }) {
   );
 }
 
-/** One 100% strip (part-to-whole) — e.g. where all of a lot went. */
+/**
+ * Part-to-whole (e.g. where all of a lot went) — drawn with the dashboard kit's donut: ring + legend table with
+ * count and share. Kilogram figures are shown in kg on the ring; exact values stay in the table view.
+ */
 export function ShareStrip({ title, caption, segs, values, format = fmtKg }: { title: string; caption?: string; segs: Seg[]; values: Record<string, number>; format?: (n: number) => string }) {
-  return <StackBars title={title} caption={caption} segs={segs} rows={[{ id: 'all', label: 'Total', text: 'Total', values }]} format={format} rowHeader="" />;
+  const used = segs.filter((s) => (values[s.key] ?? 0) > 0);
+  const inKg = format === fmtKg;
+  const total = sum(used.filter((s) => !s.notCounted).map((s) => values[s.key] ?? 0));
+  return (
+    <figure className="rt-chart rt-viz rt-share" aria-label={title}>
+      <figcaption className="rt-chart-head">
+        <strong>{title}</strong>
+        {caption && <span className="muted small">{caption}</span>}
+      </figcaption>
+      {used.length === 0 ? (
+        <p className="rt-empty">Nothing to show.</p>
+      ) : (
+        <>
+          <DonutChart
+            ariaLabel={title}
+            legendTitle="Part"
+            totalLabel={inKg ? 'kg' : 'total'}
+            summary={`Total ${format(total)}`}
+            slices={used.map((s) => ({ key: s.key, label: s.label, value: inKg ? (values[s.key] ?? 0) / 1000 : values[s.key] ?? 0, color: s.color.startsWith('var(--rt-c') ? undefined : s.color }))}
+          />
+          <Details summary="Show as table (same figures)">
+            <div className="rt-table-wrap">
+              <table className="rt-table">
+                <caption className="sr-only">{title}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Part</th>
+                    <th scope="col" className="num">Amount</th>
+                    <th scope="col" className="num">Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {used.map((s) => (
+                    <tr key={s.key}>
+                      <th scope="row">{s.label}</th>
+                      <td className="num">{format(values[s.key] ?? 0)}</td>
+                      <td className="num">{total ? `${Math.round(((values[s.key] ?? 0) * 1000) / total) / 10}%` : '—'}</td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <th scope="row">Total</th>
+                    <td className="num">
+                      <strong>{format(total)}</strong>
+                    </td>
+                    <td className="num">100%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </Details>
+        </>
+      )}
+    </figure>
+  );
 }
 
 // ---------------------------------------------------------------- flow chain (process / stock / order flows)
@@ -228,7 +285,7 @@ export function FlowChain({ title, caption, nodes, unitNote }: { title: string; 
           const body = (
             <>
               <span className="rt-fc-top">
-                <span className="rt-fc-label" title={n.label}>
+                <span className="rt-fc-label" data-tooltip={n.label}>
                   {n.label}
                 </span>
                 <span className="rt-fc-step" aria-hidden="true">
@@ -239,14 +296,14 @@ export function FlowChain({ title, caption, nodes, unitNote }: { title: string; 
               <span className="rt-fc-bar" aria-hidden="true">
                 {n.magnitude !== undefined && <span style={{ width: pct(n.magnitude, max) }} />}
               </span>
-              <span className="rt-fc-sub" title={n.sub}>
+              <span className="rt-fc-sub" data-tooltip={n.sub}>
                 {n.sub ?? ' '}
               </span>
               <span className="rt-fc-status">{n.status ? <StatusChip label={n.status.label} tone={TONE[n.status.tone]} /> : null}</span>
             </>
           );
           return (
-            <li key={n.key} className={cx('rt-fc-node', n.current && 'is-current', n.done && 'is-done')} aria-current={n.current ? 'step' : undefined}>
+            <li key={n.key} className={cx('rt-fc-node', n.current && 'is-current', n.done && 'is-done', !n.magnitude && !n.current && !n.exits?.length && 'is-idle')} aria-current={n.current ? 'step' : undefined}>
               {n.to ? (
                 <Link to={n.to} className="rt-fc-box">
                   {body}
@@ -257,7 +314,7 @@ export function FlowChain({ title, caption, nodes, unitNote }: { title: string; 
               {n.exits && n.exits.length > 0 && (
                 <ul className="rt-fc-exits" aria-label={`Leaving the flow at ${n.label}`}>
                   {n.exits.map((x) => (
-                    <li key={x.label} className={cx(x.tone === 'warn' && 'is-warn')} title={`${x.label} ${x.value}`}>
+                    <li key={x.label} className={cx(x.tone === 'warn' && 'is-warn')} data-tooltip={`${x.label} ${x.value}`}>
                       <span aria-hidden="true">↳</span>
                       <span className="rt-fc-exit-label">{x.label}</span>
                       <strong>{x.value}</strong>

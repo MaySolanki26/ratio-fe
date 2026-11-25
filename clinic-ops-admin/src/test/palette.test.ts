@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyPalette, contrast, derivePalette, findPalette, PRESET_PALETTES } from '../lib/palette';
+import { applyPalette, contrast, derivePalette, findPalette, PRESET_PALETTES, suggestFromAccent } from '../lib/palette';
 import { actorFor } from '../services/authz';
 import { __setDb, createDb } from '../services/db';
 import { deleteCustomPalette, getSettings, saveCustomPalette } from '../services/settings';
@@ -19,6 +19,19 @@ describe('theme changer', () => {
       expect(contrast(d.accentTextLight, '#ffffff')).toBeGreaterThanOrEqual(4.5);
       expect(contrast(d.railIcon, d.rail)).toBeGreaterThanOrEqual(4.5);
     }
+  });
+
+  it('the Rentio Heritage preset uses the sign-in page colours', () => {
+    const p = findPalette('rentio', []);
+    expect(p.name).toBe('Rentio Heritage');
+    const d = derivePalette(p);
+    expect(d.accent).toBe('#a3162b');
+    expect(d.rail).toBe('#3b1f12');
+    // grey canvas with only a small tint of the maroon accent (not the sign-in page's paper beige)
+    expect(d.canvas).toBe(suggestFromAccent('#a3162b').canvas);
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(d.canvas.slice(i, i + 2), 16));
+    expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThanOrEqual(6);
+    expect(d.onAccent).toBe('#ffffff');
   });
 
   it('a very light custom accent switches the button text to dark', () => {

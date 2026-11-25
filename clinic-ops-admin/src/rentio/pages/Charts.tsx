@@ -7,17 +7,11 @@
  *     open exception in transit (short / refused) | returned to factory | settled by approval.
  * Each chart has a legend, units, an accessible table equivalent and drill-through links.
  */
-import { Link } from 'react-router-dom';
 import type { StockRow } from '../../domain/rentio/engine';
 import type { RentioState } from '../../domain/rentio/types';
 import { fmtKg, type Grams, sum } from '../../domain/rentio/units';
-import { Details } from '../ui';
+import { STATUS, type Seg, StackBars } from '../graphics';
 
-interface Seg {
-  key: string;
-  label: string;
-  color: string;
-}
 interface Bar {
   id: string;
   label: string;
@@ -25,76 +19,9 @@ interface Bar {
   values: Record<string, Grams>;
 }
 
-function StackedBars({ title, caption, segs, bars, unit = 'kg', empty }: { title: string; caption: string; segs: Seg[]; bars: Bar[]; unit?: string; empty: string }) {
-  const total = (b: Bar) => sum(segs.map((s) => b.values[s.key] ?? 0));
-  const max = Math.max(1, ...bars.map(total));
-  return (
-    <figure className="rt-chart" aria-label={title}>
-      <figcaption className="rt-chart-head">
-        <strong>{title}</strong>
-        <span className="muted small">{caption}</span>
-      </figcaption>
-      <ul className="rt-chart-legend" aria-label="Legend">
-        {segs.map((s) => (
-          <li key={s.key}>
-            <span className="rt-chart-swatch" style={{ background: s.color }} aria-hidden="true" />
-            {s.label}
-          </li>
-        ))}
-      </ul>
-      {bars.length === 0 ? (
-        <p className="rt-empty">{empty}</p>
-      ) : (
-        <div className="rt-chart-rows" aria-hidden="true">
-          {bars.map((b) => (
-            <Link key={b.id} to={b.to} className="rt-chart-row" tabIndex={-1}>
-              <span className="rt-chart-label">{b.label}</span>
-              <span className="rt-chart-track">
-                {segs.map((s) => {
-                  const v = b.values[s.key] ?? 0;
-                  return v > 0 ? <span key={s.key} className="rt-chart-seg" style={{ width: `${(v * 100) / max}%`, background: s.color }} title={`${s.label}: ${fmtKg(v)}`} /> : null;
-                })}
-              </span>
-              <span className="rt-chart-total">{fmtKg(total(b))}</span>
-            </Link>
-          ))}
-          <div className="rt-chart-axis">
-            <span>0 {unit}</span>
-            <span>{fmtKg(max)}</span>
-          </div>
-        </div>
-      )}
-      {bars.length > 0 && (
-        <Details summary="Show as table (same figures)">
-          <table className="rt-table">
-            <caption className="sr-only">{title}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{title.includes('grade') ? 'Grade' : 'Distributor'}</th>
-                {segs.map((s) => (
-                  <th key={s.key} scope="col" className="num">{s.label}</th>
-                ))}
-                <th scope="col" className="num">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {bars.map((b) => (
-                <tr key={b.id}>
-                  <th scope="row">
-                    <Link to={b.to}>{b.label}</Link>
-                  </th>
-                  {segs.map((s) => (
-                    <td key={s.key} className="num">{fmtKg(b.values[s.key] ?? 0)}</td>
-                  ))}
-                  <td className="num"><strong>{fmtKg(total(b))}</strong></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Details>
-      )}
-    </figure>
-  );
+/** Owner stacked bars = the shared StackBars (one chart look across the app), rows link to their list. */
+function StackedBars({ title, caption, segs, bars, empty }: { title: string; caption: string; segs: Seg[]; bars: Bar[]; empty: string }) {
+  return <StackBars title={title} caption={caption} segs={segs} rows={bars.map((b) => ({ id: b.id, label: b.label, text: b.label, to: b.to, values: b.values }))} rowHeader={title.includes('grade') ? 'Grade' : 'Distributor'} empty={empty} />;
 }
 
 /** Finished stock by grade — exclusive split of physical kg in F1. */
@@ -112,9 +39,9 @@ export function FinishedByGradeChart({ fin, base }: { fin: StockRow[]; base: str
       title="Factory finished stock by grade"
       caption={`kg in F1 · each bar = physical stock${atRisk ? ` · held includes ${fmtKg(atRisk)} reserved on held stock (at risk)` : ''}`}
       segs={[
-        { key: 'free', label: 'Free to sell', color: 'var(--s-success)' },
-        { key: 'reserved', label: 'Reserved (shippable)', color: 'var(--s-info)' },
-        { key: 'held', label: 'Held / expired', color: 'var(--s-warning)' },
+        { key: 'free', label: 'Free to sell', color: STATUS.good },
+        { key: 'reserved', label: 'Reserved (shippable)', color: STATUS.info },
+        { key: 'held', label: 'Held / expired', color: STATUS.warn },
       ]}
       bars={bars}
       empty="No finished stock in F1."
@@ -156,12 +83,12 @@ export function DeliveryOutcomeChart({ s, base, visible }: { s: RentioState; bas
       title="Delivery outcome by distributor"
       caption="kg dispatched from the factory · physical delivery only (payment is tracked by Accounts)"
       segs={[
-        { key: 'good', label: 'Received good', color: 'var(--s-success)' },
-        { key: 'damaged', label: 'Damaged (held)', color: 'var(--s-warning)' },
-        { key: 'road', label: 'On the road', color: 'var(--s-info)' },
-        { key: 'exception', label: 'Short / refused — in transit', color: 'var(--s-danger)' },
-        { key: 'returned', label: 'Returned to factory', color: 'var(--s-text-muted)' },
-        { key: 'settled', label: 'Settled by approval', color: 'var(--s-border-strong)' },
+        { key: 'good', label: 'Received good', color: STATUS.good },
+        { key: 'damaged', label: 'Damaged (held)', color: STATUS.warn },
+        { key: 'road', label: 'On the road', color: STATUS.info },
+        { key: 'exception', label: 'Short / refused — in transit', color: STATUS.bad },
+        { key: 'returned', label: 'Returned to factory', color: STATUS.muted },
+        { key: 'settled', label: 'Settled by approval', color: STATUS.faint },
       ]}
       bars={bars}
       empty="No factory shipments yet."

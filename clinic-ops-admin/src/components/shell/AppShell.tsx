@@ -171,27 +171,36 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function IconRail({ mod, onHelp }: { mod: string; onHelp: () => void }) {
   const actor = useActor();
+  const { pathname } = useLocation();
+  const onInbox = isInboxPath(pathname);
+  const unread = inboxUnreadCount(actor);
+  const railModules = modules().filter((m) => m.id !== 'admin' && moduleVisible(actor, m));
+  // Skill rule 69c (latest): Work inbox is the 3rd rail item — after Home and the first module.
+  // Rule 103c: no count badge on the rail; the unread count stays in the accessible name.
+  const inboxItem = (
+    <li key="__inbox">
+      <Link to={inboxPath(actor.workspaceId)} className={cx('rail-item', onInbox && 'is-active')} aria-current={onInbox ? 'page' : undefined} aria-label={`${inboxLabel()}${unread ? `, ${unread} unread` : ''}`} data-tooltip={inboxLabel()}>
+        <Icon name="inbox" />
+      </Link>
+    </li>
+  );
   return (
     <nav className="rail" aria-label="Modules">
       <Link to={`${wsBase(actor.workspaceId)}/dashboard`} className="rail-brand" aria-label={`${organization().name} home`} data-tooltip={organization().name}>
         <span aria-hidden="true">{domain().id === 'rentio' ? 'RT' : 'NW'}</span>
       </Link>
       <ul className="rail-list">
-        {modules()
-          .filter((m) => m.id !== 'admin' && moduleVisible(actor, m))
-          .map((m) => (
+        {railModules.flatMap((m, i) => {
+          const active = mod === m.id && !onInbox;
+          const item = (
             <li key={m.id}>
-              <Link
-                to={moduleLanding(actor, m)}
-                className={cx('rail-item', mod === m.id && 'is-active')}
-                aria-current={mod === m.id ? 'page' : undefined}
-                aria-label={m.label}
-                data-tooltip={m.label}
-              >
+              <Link to={moduleLanding(actor, m)} className={cx('rail-item', active && 'is-active')} aria-current={active ? 'page' : undefined} aria-label={m.label} data-tooltip={m.label}>
                 <Icon name={m.icon} />
               </Link>
             </li>
-          ))}
+          );
+          return i === Math.min(1, railModules.length - 1) ? [item, inboxItem] : [item];
+        })}
       </ul>
       <ul className="rail-list rail-bottom">
         <li>

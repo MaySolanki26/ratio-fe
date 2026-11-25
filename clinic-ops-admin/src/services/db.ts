@@ -5,10 +5,16 @@
  */
 import '../domain/default';
 import { domain } from '../domain/active';
+import { DEFAULT_PALETTE_ID } from '../lib/palette';
 import type { Db, PersonalSettings } from './types';
 
 /** Storage key of the active domain (Rentio: `rentio.erp.db.v1`; clinic keeps `uab.clinic-ops.db.v1`). */
 export const storageKey = () => domain().storageKey;
+
+/** The active project's default colour palette (Rentio: 'rentio'; otherwise Graphite Black). */
+export const defaultPaletteId = () => domain().defaultPalette ?? DEFAULT_PALETTE_ID;
+/** Bump when the default palette changes so settings saved on the old default move once. */
+export const THEME_REV = 3;
 
 export const defaultSettings = (): PersonalSettings => ({
   theme: 'system',
@@ -18,8 +24,8 @@ export const defaultSettings = (): PersonalSettings => ({
   sidebarCollapsed: false,
   pins: [],
   favorites: [],
-  palette: 'graphite',
-  themeRev: 2,
+  palette: defaultPaletteId(),
+  themeRev: THEME_REV,
   formLayout: 'simple',
   zoom: 100,
   customPalettes: [],

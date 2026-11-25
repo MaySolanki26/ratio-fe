@@ -128,6 +128,7 @@ export function SelectMenu<T extends string | number>({
         type="button"
         className={cx('select-menu-trigger', block && 'is-block', open && 'is-open', !current && 'is-placeholder', className)}
         aria-haspopup="listbox"
+        data-value={value == null ? '' : String(value)}
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
         aria-label={`${label}: ${current?.label ?? placeholder}${other ? ` (click to switch to ${other.label})` : ''}`}
@@ -196,6 +197,7 @@ export function SelectMenu<T extends string | number>({
               key={String(o.value)}
               id={`${listId}-${i}`}
               data-index={i}
+              data-value={String(o.value)}
               role="option"
               aria-selected={o.value === value}
               aria-disabled={o.disabled || undefined}

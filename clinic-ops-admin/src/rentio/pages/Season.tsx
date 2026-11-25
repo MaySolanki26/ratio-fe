@@ -90,7 +90,7 @@ export default function Season() {
             rowKey={(r) => r.id}
             empty="No active runs."
             cols={[
-              { key: 'r', label: 'Active run', render: (r) => <span title={`Planned ${fmtDuration(r.plannedMinutes * 60_000)}`}><Ref>{r.id}</Ref> {r.stage}</span> },
+              { key: 'r', label: 'Active run', render: (r) => <span data-tooltip={`Planned ${fmtDuration(r.plannedMinutes * 60_000)}`}><Ref>{r.id}</Ref> {r.stage}</span> },
               { key: 'f', label: 'Stored factor', num: true, render: (r) => `× ${r.seasonFactor}` },
               { key: 'b', label: 'Planned finish', render: (r) => fmtTime(r.baselineFinish) },
               { key: 'e', label: 'Expected finish', render: (r) => <Eta t={runTiming(r, now)} /> },

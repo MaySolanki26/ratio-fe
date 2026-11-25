@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarCheck, ClipboardList, Hourglass, ListChecks, Receipt, Send, ShieldCheck, Stethoscope, Users } from 'lucide-react';
 import { addDays, formatDate, formatTime } from '../../lib/dates';
@@ -6,7 +7,7 @@ import { pagePath, recordPeekPath, resourcePath, wsBase } from '../../lib/routes
 import type { Actor } from '../../services/authz';
 import { queryRecords, recordTitle } from '../../services/runtime';
 import { listApprovals } from '../../services/workflow';
-import { DashCard, StatGrid, DonutChart, FunnelDiagram, StatCard, ActionTable, TrendChart, TrendLegend, ViewAllLink, type ActionKind, type ActionRow, type DashTone, type FunnelStep, type TrendSeries } from '../../components/dashboard';
+import { DashCard, StatGrid, DonutChart, FunnelDiagram, StatCard, ActionTable, AttentionFilter, TrendChart, TrendLegend, ViewAllLink, type ActionKind, type ActionRow, type DashTone, type FunnelStep, type TrendSeries } from '../../components/dashboard';
 import { ACTIVE, countIn, daysBetween, inRange, sum, type DashData } from './model';
 
 const TREND: TrendSeries[] = [
@@ -102,6 +103,9 @@ export function OverviewTab({ d, actor }: { d: DashData; actor: Actor }) {
     .map((x) => x.row);
 
 
+  // Needs Attention: which kinds to show (null = all), set from the card's filter icon
+  const [attentionKinds, setAttentionKinds] = useState<string[] | null>(null);
+
   return (
     <>
       <StatGrid>
@@ -179,8 +183,20 @@ export function OverviewTab({ d, actor }: { d: DashData; actor: Actor }) {
           </DashCard>
         )}
         {/* Needs attention sits beside the trend: a small Item · Amount · Action table with a kind filter */}
-        <DashCard className="is-attention" title="Needs Attention" meta={attentionTotal ? `${attentionTotal} items · most urgent first` : undefined} action={attentionTotal ? <ViewAllLink to={attentionGroups[0].to} /> : undefined}>
-          <ActionTable kinds={actionKinds} mixed={actionRows} emptyText="You're all caught up — nothing overdue or waiting on you" limit={5} />
+        <DashCard
+          className="is-attention"
+          title="Needs Attention"
+          meta={attentionTotal ? `${attentionKinds === null ? attentionTotal : actionKinds.filter((k) => attentionKinds.includes(k.key)).reduce((n, k) => n + k.count, 0)} items · most urgent first` : undefined}
+          action={
+            attentionTotal ? (
+              <span className="dv-card-actions">
+                <AttentionFilter kinds={actionKinds} selected={attentionKinds} onChange={setAttentionKinds} />
+                <ViewAllLink to={attentionGroups[0].to} />
+              </span>
+            ) : undefined
+          }
+        >
+          <ActionTable kinds={actionKinds} mixed={actionRows} selected={attentionKinds} emptyText="You're all caught up — nothing overdue or waiting on you" limit={5} />
         </DashCard>
       </div>
 

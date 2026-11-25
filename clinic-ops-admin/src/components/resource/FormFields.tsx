@@ -6,7 +6,7 @@
 import { type ReactNode, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { type FieldSnapshot, playFieldFlip, reducedMotion, snapshotFields } from '../../lib/fieldFlip';
 import type { FieldAccess, FieldDefinition, LineItemColumn, RecordData, ResourceDefinition } from '../../metadata/types';
-import { cx, formatMoney } from '../../lib/format';
+import { currencySymbol, cx, formatMoney } from '../../lib/format';
 import type { Actor } from '../../services/authz';
 import { canReadRecord } from '../../services/authz';
 import { getDb } from '../../services/db';
@@ -95,7 +95,7 @@ export function FieldInput({
     case 'money':
       return (
         <div className={cx('input-affix', field.type === 'money' && 'has-start', field.unit && 'has-end')}>
-          {field.type === 'money' && <span className="affix affix-start">$</span>}
+          {field.type === 'money' && <span className="affix affix-start">{currencySymbol(field.currency)}</span>}
           <input
             {...common}
             type="number"

@@ -15,7 +15,7 @@ import { wsBase } from '../../lib/routes';
 import { stageName } from '../../domain/rentio/views';
 import { PageTabs, usePageTab } from './_uxA';
 import { canReadLot, readScope } from '../../domain/rentio/scope';
-import { Details, ImplNote, Kpi, KpiRow, LotLink, Panel, Ref, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
+import { Details, ImplNote, Kpi, KpiRow, LotLink, NoRate, Panel, Ref, RPage, Status, Table, fmtTime, useFocusId, RSelect } from '../ui';
 
 /** Demo cost inputs (labelled demo values from config.ts). */
 const DEMO_OIL_PER_KG = DEMO.oilCostRupeesPerKg * 100; // paise/kg (config.ts)
@@ -132,13 +132,7 @@ export default function Reports() {
         extra={
           <div className="rt-tabpick">
             <label className="field-label" htmlFor="rep-root">Root lot</label>
-            <select id="rep-root" className="input" value={root} onChange={(e) => setRoot(e.target.value)}>
-              {roots.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.id} — {r.label}
-                </option>
-              ))}
-            </select>
+            <RSelect id="rep-root" label="Root lot" value={root} onChange={setRoot} options={roots.map((r) => ({ value: r.id, label: `${r.id} — ${r.label}` }))} />
             <Button icon="download" onClick={exportCsv} disabled={!acc}>
               Export CSV
             </Button>
@@ -274,9 +268,9 @@ export default function Reports() {
                     ]}
                   />
                   <KpiRow>
-                    <Kpi label="Cost per saleable kg" value={saleable ? fmtINR(costPerKg) : '—'} note={`over ${fmtKg(saleable)} packed`} />
+                    <Kpi label="Cost per saleable kg" value={saleable ? fmtINR(costPerKg) : <NoRate />} note={`over ${fmtKg(saleable)} packed`} />
                     <Kpi label="Sales value dispatched" value={fmtINR(sales, true)} note={`${fmtKg(dispatchedKg)} at order rate snapshots`} />
-                    <Kpi label="Margin on dispatched (provisional)" value={dispatchedKg ? fmtINR(sales - Math.round((costPerKg * dispatchedKg) / 1000), true) : '—'} tone="info" note={freightPending ? 'freight pending' : 'labour/overhead excluded'} />
+                    <Kpi label="Margin on dispatched (provisional)" value={dispatchedKg ? fmtINR(sales - Math.round((costPerKg * dispatchedKg) / 1000), true) : <NoRate />} tone="info" note={freightPending ? 'freight pending' : 'labour/overhead excluded'} />
                   </KpiRow>
                 </div>
               )}

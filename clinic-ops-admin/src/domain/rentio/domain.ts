@@ -58,6 +58,8 @@ export const rentioDomain: AppDomain = {
   organization: { id: 'org_rentio', slug: 'rentio', name: 'Rentio Pulses (fictional demo)' },
   workspaces: [{ id: WS, slug: WS, name: 'Plant 1 · Dal mill', timezoneLabel: 'Asia/Kolkata' }],
   storageKey: RENTIO_STORAGE_KEY,
+  // Owner decision (2026-11-25): Rentio opens in the sign-in page colours, overriding the skill's Graphite default.
+  defaultPalette: 'rentio',
   schemaVersion: 101 + SCHEMA, // 102: review round 1 (scope, stock dimensions, ETA revisions, demo snapshot)
   seedNumber: 1,
   currency: 'INR',

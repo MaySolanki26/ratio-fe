@@ -51,12 +51,12 @@ const FLOW_PAGES: [string, string][] = [
 ];
 
 describe('dashboard and every flow page have graphical views', () => {
-  it('owner overview: stock flow, production route, grade/delivery charts and run timeline (exceptions-by-area moved to Alerts)', () => {
+  it('owner overview: production route, grade/delivery charts and run timeline (stock flow card hidden by the owner 2026-11-25; exceptions-by-area moved to Alerts)', () => {
     __setDb(createDb(new Date(), { dataset: 'demo' }));
     switchSession('u_owner', 'plant1');
     const r = mount('dashboard', RentioDashboard);
     const names = [...r.container.querySelectorAll('figure')].map((f) => f.getAttribute('aria-label'));
-    for (const n of ['Where the stock is now', 'Production route — material at each stage', 'Factory finished stock by grade', 'Delivery outcome by distributor', 'Runs in progress — planned vs actual']) expect(names).toContain(n);
+    for (const n of ['Production route — material at each stage', 'Factory finished stock by grade', 'Delivery outcome by distributor', 'Runs in progress — planned vs actual']) expect(names).toContain(n);
     r.unmount();
   });
 

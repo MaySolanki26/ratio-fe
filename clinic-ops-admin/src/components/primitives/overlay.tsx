@@ -158,7 +158,6 @@ export function Dialog({ open, onClose, title, description, children, footer, si
               {title}
             </h2>
             {/* no ⓘ next to popup titles (owner rule) — description is screen-reader text */}
-            {description && <span className="sr-only">{description}</span>}
             {description && (
               <span id={descId} className="sr-only">
                 {description}
@@ -195,7 +194,8 @@ let pushConfirm: ((o: ConfirmOptions) => void) | null = null;
  */
 export function confirmDelete(o: ConfirmOptions) {
   if (pushConfirm) pushConfirm(o);
-  else if (window.confirm(`${o.title}\n\n${o.message}`)) o.onConfirm();
+  // Never window.confirm (skill rule 30): without the host nothing is deleted.
+  else console.warn('confirmDelete: ConfirmHost is not mounted; nothing was deleted.');
 }
 
 /** Mounted once in App (next to TooltipLayer). */

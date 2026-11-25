@@ -7,7 +7,7 @@ import { acknowledgeAlert } from '../../domain/rentio/people';
 import { readScope } from '../../domain/rentio/scope';
 import { alertsFor, ctaFor, isAcked, type Alert } from '../../domain/rentio/views';
 import { useAct, useR } from '../store';
-import { Details, ImplNote, PageLink, Panel, Reason, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
+import { Details, ImplNote, PageLink, Panel, Reason, RPage, Status, Table, fmtTime, useFocusId, RSelect } from '../ui';
 import { AlertsChart } from './_graphB';
 import { useShowMore } from './_uxA';
 
@@ -57,20 +57,8 @@ export default function Alerts() {
         meta={`${list.length} of ${all.length} · ${escalated} escalated · as of ${fmtTime(now)} IST`}
         actions={
           <div className="rt-tabpick">
-            <select className="input" aria-label="Severity" value={sev} onChange={(e) => setSev(e.target.value)}>
-              <option value="">All severities</option>
-              {SEVERITIES.map((x) => (
-                <option key={x}>{x}</option>
-              ))}
-            </select>
-            <select className="input" aria-label="Type" value={fam} onChange={(e) => setFam(e.target.value)}>
-              <option value="">All types</option>
-              {FAMILIES.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.label}
-                </option>
-              ))}
-            </select>
+            <RSelect label="Severity" value={sev} onChange={setSev} options={[{ value: '', label: 'All severities' }, ...SEVERITIES.map((x) => ({ value: x, label: x }))]} />
+            <RSelect label="Type" value={fam} onChange={setFam} options={[{ value: '', label: 'All types' }, ...FAMILIES.map((x) => ({ value: x.id, label: x.label }))]} />
           </div>
         }
       >

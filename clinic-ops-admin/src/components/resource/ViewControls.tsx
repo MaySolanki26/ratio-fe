@@ -6,7 +6,7 @@ import { type Actor, fieldAccess, queryableField } from '../../services/authz';
 import { activeMasterValues } from '../../services/registry';
 import { canCreateScope, canManageView, deleteView, isSystemView, moveView, saveView } from '../../services/views';
 import { getSettings, updateSettings } from '../../services/settings';
-import { cloneGroup, newCondition, newGroup, OPERATOR_LABELS, operatorsFor, VALUELESS, countConditions } from '../../services/filter';
+import { cloneGroup, newCondition, newGroup, OPERATOR_LABELS, VALUELESS, countConditions } from '../../services/filter';
 import { Button, IconButton } from '../primitives/Button';
 import { Icon } from '../primitives/Icon';
 import { useToast } from '../primitives/feedback';
@@ -14,8 +14,8 @@ import { confirmDelete, Menu, Popover } from '../primitives/overlay';
 import { relationOptions } from './FormFields';
 import { SelectMenu } from '../primitives/SelectMenu';
 import { MultiSelectMenu } from '../primitives/MultiSelectMenu';
-import { DatePicker } from '../primitives/DatePicker';
-import { DateRangePicker } from '../primitives/DateRangePicker';
+import { DateRangeCalendar } from '../primitives/DateRangeCalendar';
+import { formatDate } from '../../lib/dates';
 import { InfoTip } from '../primitives/InfoTip';
 import { fieldIcon } from './fieldIcon';
 import { ServiceError } from '../../services/types';
@@ -476,6 +476,8 @@ function QuickFilterFields({ res, actor, draft, setDraft }: { res: ResourceDefin
     replace(key, ['gte', 'lte'], [...(r.from ? [newCondition(key, 'gte', r.from)] : []), ...(r.to ? [newCondition(key, 'lte', r.to)] : [])]);
   const managed = new Set([status?.key, ...choices.map((f) => f.key), ...dates.map((f) => f.key)]);
   const extraConds = conds.filter((c) => !(managed.has(c.field) && QUICK_OPS.includes(c.operator)));
+  // OR / nested groups from a saved view or a shared link stay applied and are listed here (owner rule 55d: no builder)
+  const extraGroups = draft.children.filter((c): c is FilterGroup => c.kind === 'group');
   const statusValues = status ? activeMasterValues(status.master!) : [];
   const optionsFor = (f: FieldDefinition) =>
     f.type === 'boolean'
@@ -499,6 +501,9 @@ function QuickFilterFields({ res, actor, draft, setDraft }: { res: ResourceDefin
     const v = VALUELESS.includes(c.operator) ? '' : ` ${Array.isArray(c.value) ? c.value.join(', ') : String(c.value ?? '')}`;
     return `${fd?.label ?? c.field} ${OPERATOR_LABELS[c.operator]}${v}`;
   };
+  const describeGroup = (g: FilterGroup): string => `(${g.children.map((c) => (c.kind === 'condition' ? describe(c) : describeGroup(c))).join(` ${g.join} `)})`;
+  const extras = [...extraConds.map(describe), ...extraGroups.map(describeGroup)];
+  const extraIds = new Set([...extraConds, ...extraGroups].map((c) => c.id));
   return (
     <>
       {status && (
@@ -531,14 +536,14 @@ function QuickFilterFields({ res, actor, draft, setDraft }: { res: ResourceDefin
           </span>
           <div className="qf-date">
             <SelectMenu block label={`${f.label} period`} value={periodOf(f.key)} options={DATE_PERIOD_OPTIONS} onChange={(v) => setPeriod(f.key, v)} />
-            {periodOf(f.key) === 'custom' && <DateRangePicker label={f.label} value={rangeOf(f.key)} onChange={(r) => setRange(f.key, r)} />}
+            {periodOf(f.key) === 'custom' && <RangeField label={f.label} value={rangeOf(f.key)} onChange={(r) => setRange(f.key, r)} />}
           </div>
         </div>
       ))}
-      {extraConds.length > 0 && (
+      {extras.length > 0 && (
         <p className="qf-also muted">
-          Also applied: {extraConds.map(describe).join(' · ')}
-          <button type="button" className="link" onClick={() => setDraft((d) => ({ ...d, children: d.children.filter((c) => !extraConds.some((x) => x.id === c.id)) }))}>
+          Also applied: {extras.join(' · ')}
+          <button type="button" className="link" onClick={() => setDraft((d) => ({ ...d, children: d.children.filter((c) => !extraIds.has(c.id)) }))}>
             Remove
           </button>
         </p>
@@ -547,17 +552,42 @@ function QuickFilterFields({ res, actor, draft, setDraft }: { res: ResourceDefin
   );
 }
 
+/** A date range picked with ONE calendar (quick ranges, then Cancel · Apply) — owner rule 103f. */
+function RangeField({ label, value, onChange }: { label: string; value: { from?: string; to?: string }; onChange: (r: { from?: string; to?: string }) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  const text = value.from || value.to ? `${value.from ? formatDate(value.from) : '…'} – ${value.to ? formatDate(value.to) : '…'}` : 'Select date range';
+  return (
+    <>
+      <button ref={ref} type="button" className={cx('select-menu-trigger date-trigger is-block', open && 'is-open', !(value.from || value.to) && 'is-placeholder')} aria-haspopup="dialog" aria-expanded={open} aria-label={`${label} range: ${text}`} onClick={() => setOpen((o) => !o)}>
+        <Icon name="calendar" size={14} />
+        <span className="select-menu-value">{text}</span>
+      </button>
+      <Popover open={open} onClose={() => setOpen(false)} anchor={ref} label={`${label} range`} width={470} className="drp-pop" align="end">
+        <DateRangeCalendar
+          from={value.from}
+          to={value.to}
+          onCancel={() => setOpen(false)}
+          onApply={(from, to) => {
+            onChange({ from, to });
+            setOpen(false);
+          }}
+        />
+      </Popover>
+    </>
+  );
+}
+
 export function FilterButton({ res, actor, filter, onChange }: { res: ResourceDefinition; actor: Actor; filter: FilterGroup; onChange: (g: FilterGroup) => void }) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'quick' | 'advanced'>('quick');
   const [draft, setDraft] = useState<FilterGroup>(filter);
   const ref = useRef<HTMLButtonElement>(null);
   const n = countConditions(filter);
 
   const openPanel = () => {
     const copy = normalizeForQuick(cloneGroup(filter));
-    setDraft({ ...copy, join: quickCompatible(copy) ? 'and' : copy.join });
-    setMode(quickCompatible(copy) ? 'quick' : 'advanced');
+    // A flat AND list edits directly; anything else (OR / nested) is kept intact as one applied group.
+    setDraft(quickCompatible(copy) ? { ...copy, join: 'and' } : { ...newGroup('and'), children: [copy] });
     setOpen(true);
   };
   const close = () => setOpen(false);
@@ -576,28 +606,14 @@ export function FilterButton({ res, actor, filter, onChange }: { res: ResourceDe
         aria-haspopup="dialog"
         className={cx('tools-icon-btn', open && 'is-open')}
       />
-      <Popover open={open} onClose={close} anchor={ref} label="Filters" width={mode === 'quick' ? 380 : 480} className="filter-pop" align="end">
-        {mode === 'quick' ? (
-          <div className="qf qf-rows">
-            <div className="qf-title">
-              <Icon name="filter" size={16} />
-              <strong>Filter</strong>
-            </div>
-            <QuickFilterFields res={res} actor={actor} draft={draft} setDraft={setDraft} />
+      <Popover open={open} onClose={close} anchor={ref} label="Filters" width={380} className="filter-pop" align="end">
+        <div className="qf qf-rows">
+          <div className="qf-title">
+            <Icon name="filter" size={16} />
+            <strong>Filter</strong>
           </div>
-        ) : (
-          <div className="qf-adv">
-            <div className="pop-head">
-              <strong>Advanced conditions</strong>
-              {quickCompatible(draft) && (
-                <button type="button" className="link" onClick={() => setMode('quick')}>
-                  Simple filters
-                </button>
-              )}
-            </div>
-            <GroupEditor res={res} actor={actor} group={draft} onChange={setDraft} depth={0} />
-          </div>
-        )}
+          <QuickFilterFields res={res} actor={actor} draft={draft} setDraft={setDraft} />
+        </div>
         <div className="qf-foot">
           <Button
             variant="ghost"
@@ -623,126 +639,6 @@ export function FilterButton({ res, actor, filter, onChange }: { res: ResourceDe
     </>
   );
 }
-
-function filterableFields(res: ResourceDefinition, actor: Actor) {
-  return res.fields.filter((f) => f.capabilities.filter && queryableField(actor, res, f));
-}
-
-function GroupEditor({ res, actor, group, onChange, depth, onRemove }: { res: ResourceDefinition; actor: Actor; group: FilterGroup; onChange: (g: FilterGroup) => void; depth: number; onRemove?: () => void }) {
-  const fields = filterableFields(res, actor);
-  const update = (id: string, child: FilterCondition | FilterGroup | null) =>
-    onChange({ ...group, children: child ? group.children.map((c) => (c.id === id ? child : c)) : group.children.filter((c) => c.id !== id) });
-  return (
-    <div className={cx('filter-group', depth > 0 && 'is-nested')}>
-      {group.children.length > 1 && (
-        <div className="filter-join" role="radiogroup" aria-label="Match">
-          <span className="muted">Match</span>
-          {(['and', 'or'] as const).map((j) => (
-            <button key={j} type="button" role="radio" aria-checked={group.join === j} className={cx('seg-btn', group.join === j && 'is-on')} onClick={() => onChange({ ...group, join: j })}>
-              {j === 'and' ? 'All (AND)' : 'Any (OR)'}
-            </button>
-          ))}
-        </div>
-      )}
-      {group.children.length === 0 && <p className="muted filter-empty">No conditions — showing all records you can access.</p>}
-      {group.children.map((c) =>
-        c.kind === 'group' ? (
-          <GroupEditor key={c.id} res={res} actor={actor} group={c} depth={depth + 1} onChange={(g) => update(c.id, g)} onRemove={() => update(c.id, null)} />
-        ) : (
-          <ConditionRow key={c.id} res={res} actor={actor} cond={c} fields={fields} onChange={(x) => update(c.id, x)} onRemove={() => update(c.id, null)} />
-        ),
-      )}
-      <div className="filter-actions">
-        <Button
-          variant="ghost"
-          icon="plus"
-          onClick={() => {
-            const f = fields[0];
-            if (f) onChange({ ...group, children: [...group.children, newCondition(f.key, operatorsFor(f)[0])] });
-          }}
-        >
-          Add condition
-        </Button>
-        {depth === 0 && (
-          <Button variant="ghost" icon="plus" onClick={() => onChange({ ...group, children: [...group.children, { ...newGroup('or'), children: fields[0] ? [newCondition(fields[0].key, operatorsFor(fields[0])[0])] : [] }] })}>
-            Add group
-          </Button>
-        )}
-        {onRemove && (
-          <Button variant="ghost" icon="trash" onClick={onRemove}>
-            Remove group
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ConditionRow({ res, actor, cond, fields, onChange, onRemove }: { res: ResourceDefinition; actor: Actor; cond: FilterCondition; fields: FieldDefinition[]; onChange: (c: FilterCondition) => void; onRemove: () => void }) {
-  const field = res.fields.find((f) => f.key === cond.field);
-  const unavailable = !field || !fields.includes(field);
-  const ops = field ? operatorsFor(field) : [];
-  return (
-    <div className="filter-row">
-      <SelectMenu
-        block
-        label="Field"
-        placeholder="Select field"
-        value={cond.field}
-        options={[...(unavailable ? [{ value: cond.field, label: 'Unavailable field' }] : []), ...fields.map((f) => ({ value: f.key, label: f.label }))]}
-        onChange={(k) => {
-          const f = res.fields.find((x) => x.key === k)!;
-          onChange({ ...cond, field: f.key, operator: operatorsFor(f)[0], value: undefined });
-        }}
-      />
-      <SelectMenu
-        block
-        label="Operator"
-        placeholder="Select condition"
-        value={cond.operator}
-        disabled={unavailable}
-        options={ops.map((o) => ({ value: o, label: OPERATOR_LABELS[o] }))}
-        onChange={(o) => onChange({ ...cond, operator: o as FilterCondition['operator'] })}
-      />
-      {field && !VALUELESS.includes(cond.operator) ? <ValueInput field={field} actor={actor} value={cond.value} onChange={(v) => onChange({ ...cond, value: v })} /> : <span className="filter-novalue" />}
-      <IconButton icon="x" label="Remove condition" onClick={onRemove} />
-      {unavailable && <p className="field-help span-all">This condition references a field you cannot query; it is ignored.</p>}
-    </div>
-  );
-}
-
-function ValueInput({ field, actor, value, onChange }: { field: FieldDefinition; actor: Actor; value: unknown; onChange: (v: unknown) => void }) {
-  const cls = 'input input-compact';
-  if (field.type === 'master' || field.type === 'multimaster') {
-    return <SelectMenu block label="Value" placeholder="Select value" value={String(value ?? '')} options={activeMasterValues(field.master!).map((o) => ({ value: o.key, label: o.label }))} onChange={(v) => onChange(v)} />;
-  }
-  if (field.type === 'relation') {
-    const opts = relationOptions(actor, { ...field, relation: { ...field.relation!, filterBy: undefined } }, {});
-    return <SelectMenu block label="Value" placeholder="Select value" value={String(value ?? '')} options={opts.map((o) => ({ value: o.id, label: o.label }))} onChange={(v) => onChange(v)} />;
-  }
-  if (field.type === 'boolean') {
-    return (
-      <SelectMenu
-        block
-        label="Value"
-        placeholder="Select value"
-        value={value === undefined || value === '' ? '' : String(value)}
-        options={[
-          { value: 'true', label: 'Yes' },
-          { value: 'false', label: 'No' },
-        ]}
-        onChange={(v) => onChange(v === 'true')}
-      />
-    );
-  }
-  if (field.type === 'date' || field.type === 'datetime') {
-    return <DatePicker block label="Value" value={(value as string) || ''} onChange={(v) => onChange(v ?? '')} />;
-  }
-  const type = ['number', 'money', 'progress'].includes(field.type) ? 'number' : 'text';
-  return <input className={cls} aria-label="Value" placeholder={type === "number" ? "0" : "Enter value"} type={type} value={String(value ?? '')} onChange={(e) => onChange(type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value)} />;
-}
-
-// ---------------------------------------------------------------- Column manager
 
 export function ColumnManager({
   res,

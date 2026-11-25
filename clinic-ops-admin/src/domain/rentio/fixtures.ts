@@ -52,6 +52,8 @@ export const SAMPLE_ATTENDANCE_CSV = punchesCsv();
 export function buildExceptions(db: Db, now = new Date()) {
   /** Recent events are placed relative to the build time so they are never in the future. */
   const ago = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+  /** Plant-local (IST) calendar date `d` days after the build time. */
+  const istDay = (d: number) => new Date(now.getTime() + 330 * 60_000 + d * 86_400_000).toISOString().slice(0, 10);
   // ---- EX-2 / migration: bulk B1 with unknown origin → packed child, reserved, then parent held
   as(db, 'u_ravi', 'Opening WIP migration (unknown origin)', ist('2026-11-10 09:00'), (ctx) => {
     createLot(ctx, { id: 'MIG-0001', rootId: 'MIG-0001', material: 'DAL', grade: 'B1', label: 'Migrated opening bulk dal B1 — origin unknown (controlled migration ID)', parents: [], nextStage: 'PACK', routeVersion: 1 });
@@ -95,7 +97,7 @@ export function buildExceptions(db: Db, now = new Date()) {
   as(db, 'u_kiran', 'Advance booking D03', ist('2026-11-24 10:30'), (ctx) => C.createFactoryOrder(ctx, { distributorId: 'D03', lines: [{ grade: 'B1', kg: 2000 }], promisedDate: '2026-12-05', advance: true }));
 
   // ---- EX-1: partial receipt + partial handover receipt + running delayed stage
-  as(db, 'u_kiran', 'Purchase RT-002', ago(20), (ctx) => O.createPurchase(ctx, { supplierId: 'SUP-003', declaredKg: 6000, ratePerKg: 78, billRef: 'SAT-2211', lotCode: 'RT-002', promisedDate: '2026-11-26' }));
+  as(db, 'u_kiran', 'Purchase RT-002', ago(20), (ctx) => O.createPurchase(ctx, { supplierId: 'SUP-003', declaredKg: 6000, ratePerKg: 78, billRef: 'SAT-2211', lotCode: 'RT-002', promisedDate: istDay(1) }));
   const in2 = as(db, 'u_kiran', 'Truck 1 for RT-002', ago(18), (ctx) => O.recordIntake(ctx, { purchaseId: 'PO-RT-002', truck: 'MH13-CD-1100', slip: 'WB-55101', grossKg: 9000, tareKg: 6000, moisturePct: 11.5, foreignMatterPct: 2, damagePct: 1, evidence: ['slip-WB-55101.jpg (demo)'] }));
   as(db, 'u_meera', 'Partially accept RT-002', ago(17), (ctx) => O.checkIntake(ctx, { intakeId: in2.id, acceptKg: 2950, rejectKg: 50, godown: 'R1' }));
   const ho2 = as(db, 'u_ravi', 'Issue RT-002 to cleaning', ago(6), (ctx) => O.issue(ctx, { lotId: 'RT-002', fromLoc: 'R1', qtyKg: 2950, toStage: 'CLEAN' }));
@@ -148,4 +150,32 @@ export function buildDemoExtras(db: Db, now = new Date()) {
   as(db, 'u_kiran', 'Purchase RT-004', ago(26), (ctx) => O.createPurchase(ctx, { supplierId: 'SUP-004', declaredKg: 5000, ratePerKg: 81, billRef: 'KP-5521', lotCode: 'RT-004', brokerId: 'BRK-01' }));
   const i4 = as(db, 'u_kiran', 'Truck for RT-004', ago(25), (ctx) => O.recordIntake(ctx, { purchaseId: 'PO-RT-004', truck: 'MH30-EF-2290', slip: 'WB-55201', grossKg: 11000, tareKg: 6000, moisturePct: 10.4, foreignMatterPct: 1.5, damagePct: 0.5, evidence: ['slip-WB-55201.jpg (demo)'] }));
   as(db, 'u_meera', 'Accept RT-004', ago(24), (ctx) => O.checkIntake(ctx, { intakeId: i4.id, acceptKg: 5000, godown: 'R1' }));
+  buildBaClosure(db, now);
+}
+
+/**
+ * BA closure demos (dataset "demo"), all separate roots — RT-001 is untouched:
+ *  BA-1 repacking: MIG-0030 A2, 10 × 25 kg = 250 kg released in F1-S04; 220 × 1 kg pouches in stores.
+ *  BA-2 multi-stop: MIG-0031 B2, 20 × 25 kg = 500 kg in F1-S06; SO for D01 250 kg and SO for D02 250 kg, both
+ *       reserved and ready for ONE two-stop trip.
+ *  BA-3 incident: uses the live RT-002 cleaning delay (EX-8) and the D02 at-risk B1 reservation (EX-2).
+ *  BA-4 replenishment: pouches below minimum (stores shortage), RT-002 open 3,000 kg counted as timely supply,
+ *       RT-005 promised beyond the lead time (not counted), D17 stale vs D04/D08/D11/D14 current partners.
+ */
+export function buildBaClosure(db: Db, now = new Date()) {
+  const ago = (h: number) => new Date(now.getTime() - h * 3_600_000).toISOString();
+  const day = (d: number) => new Date(now.getTime() + d * 86_400_000).toISOString().slice(0, 10);
+  as(db, 'u_ravi', 'Opening stock for BA closure demos (migration)', ago(48), (ctx) => {
+    createLot(ctx, { id: 'MIG-0030', rootId: 'MIG-0030', material: 'PACKED', grade: 'A2', sku: 'SKU-A2-25', bags: 10, bagSize: kg(25), mfgDate: '2026-10-01', expiry: '2027-03-30', label: 'Migrated factory stock A2 (torn outer bags — repack candidate)', parents: [] });
+    move(ctx, { lotId: 'MIG-0030', qty: kg(250), to: 'F1-S04', kind: 'opening', basis: 'Counted', ref: 'MIGRATION' });
+    createLot(ctx, { id: 'POUCH-1-B01', rootId: 'POUCH-1-B01', material: 'BAGS', label: 'Empty 1 kg retail pouches (stores)', parents: [], unit: 'bag', bagSize: kg(1) });
+    move(ctx, { lotId: 'POUCH-1-B01', qty: 220 * 1000, to: 'STORES', kind: 'opening', basis: 'Counted', ref: 'OPENING' });
+    createLot(ctx, { id: 'MIG-0031', rootId: 'MIG-0031', material: 'PACKED', grade: 'B2', sku: 'SKU-B2-25', bags: 20, bagSize: kg(25), mfgDate: '2026-10-05', expiry: '2027-04-03', label: 'Migrated factory stock B2', parents: [] });
+    move(ctx, { lotId: 'MIG-0031', qty: kg(500), to: 'F1-S06', kind: 'opening', basis: 'Counted', ref: 'MIGRATION' });
+  });
+  for (const d of ['D01', 'D02']) {
+    const o = as(db, 'u_kiran', `Order for ${d} (B2, multi-stop demo)`, ago(3), (ctx) => C.createFactoryOrder(ctx, { distributorId: d, lines: [{ grade: 'B2', kg: 250 }], promisedDate: day(2) }));
+    as(db, 'u_kiran', `Reserve ${d} B2`, ago(2.9), (ctx) => C.reserveOrder(ctx, o.id));
+  }
+  as(db, 'u_kiran', 'Purchase RT-005 (arrives after the lead time)', ago(2), (ctx) => O.createPurchase(ctx, { supplierId: 'SUP-001', declaredKg: 3000, ratePerKg: 80, billRef: 'RP-901', lotCode: 'RT-005', promisedDate: day(10) }));
 }

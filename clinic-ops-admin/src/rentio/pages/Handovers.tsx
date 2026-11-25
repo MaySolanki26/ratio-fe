@@ -6,6 +6,7 @@ import { scopedHandovers } from '../../domain/rentio/scope';
 import type { Handover } from '../../domain/rentio/types';
 import { fmtKg } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
+import { HandoverGraphics } from './_graphA';
 import { BasisChip, Details, FormButton, ImplNote, Kpi, KpiRow, LotLink, Panel, Qty, RPage, Status, str, Table, useCan, Who, fmtTime, useFocusId } from '../ui';
 
 /** Issued · received · outstanding shown together so nobody mistakes the original issue for what is left. */
@@ -56,6 +57,7 @@ export default function Handovers() {
         <Kpi label="Between stages (not yet received)" value={fmtKg(open.reduce((a, h) => a + outstanding(h), 0))} />
         <Kpi label="Short receipts to settle" value={partials.length} tone={partials.length ? 'danger' : undefined} />
       </KpiRow>
+      <HandoverGraphics open={open} focus={focus} where={where} />
       {partials.map((h) => (
         <Panel key={h.id} title={`Short receipt · ${h.lotId}`} meta={`${where(h.fromLoc)} → ${h.toStage}`} id={`ho-${h.id}`}>
           <div className="rt-stack">

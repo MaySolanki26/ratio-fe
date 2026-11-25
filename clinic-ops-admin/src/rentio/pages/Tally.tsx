@@ -7,6 +7,8 @@ import { purchaseBalances } from '../../domain/rentio/ops';
 import { fmtINR, fmtKg } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
 import { Details, FormButton, Grid, ImplNote, Kpi, KpiRow, num, Panel, Reason, Ref, RPage, Sim, Status, Table, fmtTime, useCan, useFocusId } from '../ui';
+import { TallyCharts } from './_graphB';
+import { wsBase } from '../../lib/routes';
 
 export default function Tally() {
   const { db, s } = useR();
@@ -39,6 +41,7 @@ export default function Tally() {
         <Kpi label="Status unknown" value={count('status_unknown')} tone={count('status_unknown') ? 'warning' : undefined} />
         <Kpi label="Simulator: next fail / timeout" value={`${s.tallySim.failNext} / ${s.tallySim.timeoutNext}`} note="Simulated faults" />
       </KpiRow>
+      <TallyCharts s={s} base={wsBase(db.session.workspaceId)} />
 
       <Panel
         title="Document queue"

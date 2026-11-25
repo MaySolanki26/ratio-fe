@@ -463,9 +463,9 @@ function FieldInput({ f, value, onChange }: { f: FieldSpec; value: string | bool
 }
 
 /** Button that opens an ActionForm; disabled with the genuine reason when the role cannot act. */
-export function FormButton(props: Omit<Parameters<typeof ActionForm>[0], 'open' | 'onClose'> & { label: string; icon?: string; variant?: 'primary' | 'secondary' | 'ghost'; disabledReason?: string }) {
-  const [open, setOpen] = useState(false);
-  const { label, icon, variant, disabledReason, ...form } = props;
+export function FormButton(props: Omit<Parameters<typeof ActionForm>[0], 'open' | 'onClose'> & { label: string; icon?: string; variant?: 'primary' | 'secondary' | 'ghost'; disabledReason?: string; /** open on mount (handoff links such as ?new=order) — never when the role cannot act */ defaultOpen?: boolean }) {
+  const { label, icon, variant, disabledReason, defaultOpen, ...form } = props;
+  const [open, setOpen] = useState(!!defaultOpen && !disabledReason);
   return (
     <>
       <Button variant={variant ?? 'secondary'} icon={icon} onClick={() => setOpen(true)} disabledReason={disabledReason}>

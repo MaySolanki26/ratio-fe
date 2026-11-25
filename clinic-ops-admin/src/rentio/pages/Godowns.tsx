@@ -8,6 +8,9 @@ import { fmtLotQty } from '../../domain/rentio/views';
 import { useAct, useR } from '../store';
 import { Details, FormButton, ImplNote, Kpi, KpiRow, LotLink, Panel, Qty, RPage, Reason, Status, Table, Who, fmtDay, fmtTime, num, str, useCan, useFocusId } from '../ui';
 import { Condition } from './Inventory';
+import { RepackPanel } from './Repack';
+import { GodownGraphics } from './_graphA';
+import { wsBase } from '../../lib/routes';
 
 const GODOWNS = ['R1', 'F1', 'BYP', 'STORES', 'QUAR'];
 const STACKS = ['F1-S01', 'F1-S02', 'F1-S03', 'F1-S04', 'F1-S05', 'F1-S06'];
@@ -52,7 +55,7 @@ export default function Godowns() {
   const stackSum = sum(stackSummary.map((x) => x.used)) + usedAt('F1');
   // focus ids from links: location ids, lot ids (stack/raw rows) or F1 put-away handover ids
   const lotFocus = (list: StockRow[]) => (focus ? list.find((r) => r.lotId === focus || `${r.lotId}|${r.loc}` === focus) : undefined);
-  const known = !focus || GODOWNS.includes(focus) || STACKS.includes(focus) || rows.some((r) => r.lotId === focus) || pendingF1.some((h) => h.id === focus) || (db.records.locations ?? []).some((l) => l.id === focus);
+  const known = !focus || (s.repacks ?? []).some((x) => x.id === focus) || GODOWNS.includes(focus) || STACKS.includes(focus) || rows.some((r) => r.lotId === focus) || pendingF1.some((h) => h.id === focus) || (db.records.locations ?? []).some((l) => l.id === focus);
   const rowKey = (r: StockRow) => `${r.lotId}|${r.loc}`;
 
   const lotCols = [
@@ -75,6 +78,8 @@ export default function Godowns() {
           return <Kpi key={g} label={String(locRec(g)?.label ?? g)} value={fmtKg(used)} note={cap ? `${Math.round((used * 100) / cap)}% of ${fmtKg(cap)} · free ${fmtKg(Math.max(0, cap - used))}` : 'no capacity limit'} tone={cap && used > cap ? 'danger' : undefined} />;
         })}
       </KpiRow>
+
+      <GodownGraphics s={s} rows={rows} handovers={scopedHandovers(s, actor)} base={wsBase(db.session.workspaceId)} stacks={STACKS} godowns={GODOWNS} capacity={capacity} labelOf={(id) => String(locRec(id)?.label ?? id)} focus={focus && (STACKS.includes(focus) || GODOWNS.includes(focus)) ? focus : undefined} />
 
       <Panel
         title="Finished Godown F1 — stacks"
@@ -134,6 +139,8 @@ export default function Godowns() {
           <Table cols={lotCols} rows={stackRows} rowKey={rowKey} rowClass={(r) => (r.held || r.expired ? 'is-held' : undefined)} focus={lotFocus(stackRows) ? rowKey(lotFocus(stackRows)!) : undefined} empty="F1 is empty." />
         </Details>
       </Panel>
+
+      <RepackPanel rows={rows} focus={focus} />
 
       <Panel title="Waiting to be put away in F1" meta="Packed batches from packing">
         <Table

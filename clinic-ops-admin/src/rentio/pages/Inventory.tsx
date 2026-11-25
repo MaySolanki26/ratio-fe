@@ -6,6 +6,8 @@ import { canReadLoc, readScope, scopedMovements, scopedStockRows } from '../../d
 import { fmtKg } from '../../domain/rentio/units';
 import { bucketOf, fmtLotQty, stockSummary, type Bucket } from '../../domain/rentio/views';
 import { useR } from '../store';
+import { InventoryGraphics } from './_graphA';
+import { wsBase } from '../../lib/routes';
 import { Details, ImplNote, Kpi, KpiRow, LotLink, Panel, Qty, Reason, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
 
 const BUCKETS: { id: Bucket; label: string }[] = [
@@ -33,7 +35,7 @@ export function Condition({ r }: { r: StockRow }) {
 }
 
 export default function Inventory() {
-  const { s, now, actor } = useR();
+  const { s, db, now, actor } = useR();
   const focus = useFocusId();
   const [bucket, setBucket] = useState<'' | Bucket>('');
   const [q, setQ] = useState('');
@@ -74,6 +76,8 @@ export default function Inventory() {
           />
         ))}
       </KpiRow>
+
+      <InventoryGraphics s={s} actor={actor} now={now} base={wsBase(db.session.workspaceId)} rows={all} buckets={BUCKETS} bucketOf={bucketOf} />
 
       <Panel
         title="Positions"

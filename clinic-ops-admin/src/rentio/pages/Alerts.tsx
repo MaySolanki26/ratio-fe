@@ -1,14 +1,28 @@
 import { useState } from 'react';
 import { Button } from '../../components/primitives/Button';
 import { InlineAlert, StatusChip } from '../../components/primitives/feedback';
-import { userName } from '../../domain/rentio/access';
+import { hasCap, userName } from '../../domain/rentio/access';
+import { incidentFor, incidentForSource, incidentView } from '../../domain/rentio/incidents';
 import { acknowledgeAlert } from '../../domain/rentio/people';
 import { readScope } from '../../domain/rentio/scope';
 import { alertsFor, ctaFor, isAcked, type Alert } from '../../domain/rentio/views';
 import { useAct, useR } from '../store';
 import { Details, ImplNote, Kpi, KpiRow, PageLink, Panel, Reason, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
+import { AlertsChart } from './_graphB';
 
 const SEVERITIES: Alert['severity'][] = ['critical', 'high', 'medium', 'low'];
+
+/** "Part of INC-0001 · lead Sunita Rao" — the alert itself stays open with its own owner. */
+export function IncidentTag({ a, sourceId }: { a?: Pick<Alert, 'key' | 'sourceId'>; sourceId?: string }) {
+  const { db, s, actor, now } = useR();
+  const inc = a ? incidentFor(s, a) : sourceId ? incidentForSource(s, sourceId) : undefined;
+  if (!inc) return null;
+  return (
+    <div className="muted small">
+      {hasCap(actor, 'page:home/incidents') ? <PageLink to={`home/incidents?focus=${inc.id}`}>Part of {inc.id}</PageLink> : `Part of ${inc.id}`} · {incidentView(db, actor, now, inc).title} · lead {userName(inc.leadId)}
+    </div>
+  );
+}
 const FAMILIES: { id: Alert['family']; label: string }[] = [
   { id: 'decision', label: 'Owner decisions' },
   { id: 'delivery', label: 'Deliveries' },
@@ -39,6 +53,7 @@ export default function Alerts() {
         ))}
         <Kpi label="Escalated" value={all.filter((a) => a.escalation > 0).length} tone={all.some((a) => a.escalation > 0) ? 'warning' : undefined} />
       </KpiRow>
+      <AlertsChart alerts={all} families={FAMILIES} />
       <Panel
         title="Open alerts"
         meta={`${list.length} of ${all.length} · as of ${fmtTime(now)} IST`}
@@ -77,6 +92,7 @@ export default function Alerts() {
                   <div className="rt-brief-detail">
                     <Reason text={a.detail} />
                   </div>
+                  <IncidentTag a={a} />
                 </>
               ),
             },

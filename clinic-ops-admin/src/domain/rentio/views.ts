@@ -11,6 +11,7 @@ import { DISTRIBUTORS, PEOPLE, STAGES } from './data';
 import { canReadLoc, readScope } from './scope';
 import { computePositions, descendants, familyOf, stockRows, type StockRow } from './engine';
 import { outstanding, purchaseBalances, runTiming } from './ops';
+import { openSuggestions, scopedSuggestions } from './replenish';
 import type { Lot, Movement, RentioState, StageCode } from './types';
 import { fmtKg, type Grams, sum } from './units';
 
@@ -362,6 +363,8 @@ export function alerts(db: Db, now: string): Alert[] {
   for (const sh of s.shipments.filter((x) => x.status === 'in_transit' && x.toDistributor)) push({ key: `sh:${sh.id}`, severity: 'low', family: 'delivery', title: `${fmtKg(sum(sh.lines.map((l) => l.qty)))} in transit to ${sh.toDistributor}`, detail: `Dispatched ${istHm(sh.dispatchedAt)}; waiting for the distributor's receipt.`, qty: fmtKg(sum(sh.lines.map((l) => l.qty))), ownerId: personFor('distributor', { distributorId: sh.toDistributor }), roles: ['godown', 'distributor', 'back_office'], ownerDecision: false, link: link('distribution/distributors', sh.id, `&d=${sh.toDistributor}`), action: 'Receive shipment', sourceId: sh.id, scope: { loc: sh.transitLoc, distributorId: sh.toDistributor }, at: sh.dispatchedAt, windowHours: 48, escalateTo: 'u_kiran' });
   for (const d of s.disputes.filter((x) => x.status === 'open')) {
     const sh = s.shipments.find((x) => x.id === d.shipmentId);
+    // a refused stop is tracked once, by its stop alert (disposition), not again as a shortage
+    if (sh?.receipt?.refused && !sh.receipt.damaged && s.trips.some((t) => t.stops?.some((st) => st.shipmentId === sh.id && st.refusedQty === sh.receipt!.short))) continue;
     push({ key: `dsp:${d.id}`, severity: 'high', family: 'delivery', title: `${sh?.toDistributor ?? ''} receipt short: ${d.reason}`, detail: `${d.shipmentId}: quantity stays in transit custody until it is located or approved as loss.`, qty: fmtKg(d.qty), ownerId: 'u_kiran', roles: ['back_office', 'godown', 'distributor', 'factory_head'], ownerDecision: false, link: link('distribution/logistics', d.id), action: 'Investigate shortfall', sourceId: d.id, scope: { loc: sh?.transitLoc, distributorId: sh?.toDistributor }, at: d.createdAt, windowHours: 24 });
   }
   for (const o of s.orders.filter((x) => x.kind === 'factory' && x.status === 'approved' && !x.advance)) {
@@ -380,6 +383,15 @@ export function alerts(db: Db, now: string): Alert[] {
   }
   for (const r of rows.filter((x) => x.lot.expiry && x.location && ['finished', 'distributor'].includes(x.location.kind) && Date.parse(x.lot.expiry) - Date.parse(now) < DEMO.nearExpiryDays * 86_400_000))
     push({ key: `exp:${r.lotId}:${r.loc}`, severity: 'medium', family: 'stock', title: `${r.lot.grade ?? ''} ${r.lotId} ${r.expired ? 'expired' : `expires ${r.lot.expiry}`} at ${r.location.label}`, detail: r.expired ? 'Blocked from orders.' : 'Sell first (FEFO) — expired stock is blocked from orders.', qty: fmtKg(r.qty), ownerId: r.location.distributorId ? personFor('distributor', { distributorId: r.location.distributorId }) : 'u_ravi', roles: ['godown', 'distributor', 'salesman'], ownerDecision: false, link: r.location.distributorId ? link('distribution/distributors', r.lotId, `&d=${r.location.distributorId}`) : link('stock/inventory', r.lotId), action: 'See stock', sourceId: r.lotId, scope: { loc: r.loc, distributorId: r.location.distributorId }, at: now });
+  // BA closure: repacks waiting for independent QC release (source stays intact until then)
+  for (const rp of (s.repacks ?? []).filter((x) => x.status === 'pending_qc'))
+    push({ key: `rpk:${rp.id}`, severity: 'medium', family: 'stock', title: `Repack ${rp.id} of ${rp.sourceLotId} waiting for QC release`, detail: `${fmtKg(rp.inputQty)} → ${rp.outputBags} × ${fmtKg(rp.targetBagSize)}${rp.loss ? ` + ${fmtKg(rp.loss)} recorded loss` : ''} at ${s.locations[rp.fromLoc]?.label ?? rp.fromLoc}. Nothing has moved yet.`, qty: fmtKg(rp.inputQty), ownerId: 'u_meera', roles: ['qc', 'godown', 'factory_head'], ownerDecision: false, link: link('stock/godowns', rp.id), action: 'Release repack', actionCap: 'quality.release', sourceId: rp.id, scope: { loc: rp.fromLoc }, at: rp.requestedAt, windowHours: 8 });
+  // BA closure: multi-stop stops with refused / unresolved quantity still on the vehicle
+  for (const t of s.trips.filter((x) => x.stops?.length))
+    for (const st of t.stops!) {
+      if (!st.outcome || st.disposition || !st.refusedQty) continue;
+      push({ key: `stop:${t.id}#${st.seq}`, severity: 'high', family: 'delivery', title: `${fmtKg(st.refusedQty)} ${st.outcome === 'refused' ? 'refused' : 'part refused'} at stop ${st.seq} (${st.distributorId}) on ${t.id}`, detail: `${st.reason ?? ''} · receiver ${st.receiverName} · ${st.evidence}. Still in transit custody — decide the disposition.`, qty: fmtKg(st.refusedQty), ownerId: 'u_ravi', roles: ['godown', 'back_office', 'factory_head'], ownerDecision: false, link: link('distribution/logistics', t.id), action: 'Return to factory', actionCap: 'dispatch', sourceId: `${t.id}#${st.seq}`, scope: { loc: s.shipments.find((x) => x.id === st.shipmentId)?.transitLoc }, at: st.at!, windowHours: 12 });
+    }
   const rank = { critical: 0, high: 1, medium: 2, low: 3 };
   return out.sort((a, b) => Number(b.ownerDecision) - Number(a.ownerDecision) || rank[a.severity] - rank[b.severity] || b.escalation - a.escalation || b.at.localeCompare(a.at));
 }
@@ -387,18 +399,21 @@ export function alerts(db: Db, now: string): Alert[] {
 export const isAcked = (s: RentioState, key: string) => s.acks.filter((a) => a.key === key);
 
 /** Alerts an actor is accountable for or has escalated to them — always within their read scope. */
+/** The alert read rule (roles + record scope). Also applied to incident children's snapshot scope once the live alert is gone. */
+export function alertVisibleTo(s: RentioState, actor: RActor, a: Pick<Alert, 'roles' | 'scope' | 'ownerId'>, sc = readScope(actor)) {
+  if (sc.all) return true;
+  if (!a.roles.includes(actor.roleId)) return false;
+  if (a.scope.distributorId && !(sc.allDistributors || sc.distributors.includes(a.scope.distributorId))) return false;
+  if (a.scope.stage && !sc.factory && !sc.stages.includes(a.scope.stage)) return false;
+  if (a.scope.loc && !canReadLoc(s, actor, a.scope.loc, sc)) return false;
+  if (!a.scope.loc && !a.scope.distributorId && !a.scope.stage) return sc.factory || a.ownerId === actor.id;
+  return true;
+}
+
 export function alertsFor(db: Db, actor: RActor, now: string) {
   const s = R(db);
   const sc = readScope(actor);
-  return alerts(db, now).filter((a) => {
-    if (!sc.all && !a.roles.includes(actor.roleId)) return false;
-    if (sc.all) return true;
-    if (a.scope.distributorId && !(sc.allDistributors || sc.distributors.includes(a.scope.distributorId))) return false;
-    if (a.scope.stage && !sc.factory && !sc.stages.includes(a.scope.stage)) return false;
-    if (a.scope.loc && !canReadLoc(s, actor, a.scope.loc, sc)) return false;
-    if (!a.scope.loc && !a.scope.distributorId && !a.scope.stage) return sc.factory || a.ownerId === actor.id;
-    return true;
-  });
+  return alerts(db, now).filter((a) => alertVisibleTo(s, actor, a, sc));
 }
 
 // ---------------------------------------------------------------- My Work
@@ -477,6 +492,12 @@ export function myWork(db: Db, actor: RActor, now: string): WorkItem[] {
     const imp = s.imports[s.imports.length - 1];
     if (imp && !s.payroll.some((p) => p.period === imp.at.slice(0, 7))) items.push({ key: 'pay:draft', kind: 'payroll', title: `Prepare payroll for ${imp.at.slice(0, 7)}`, detail: `${imp.accepted} punches imported (${imp.duplicates} duplicates ignored)`, sourceId: imp.id, link: link('hr/attendance', imp.id), action: 'Prepare payroll' });
   }
+  // BA closure: QC releases of repacks; replenishment suggestions for their named reviewer
+  if (hasCap(actor, 'quality.release'))
+    for (const rp of (s.repacks ?? []).filter((x) => x.status === 'pending_qc'))
+      items.push({ key: `rpk:${rp.id}`, kind: 'check', title: `Release repack ${rp.id} (${rp.sourceLotId})`, detail: rp.requestedBy === actor.id ? 'You recorded this — another checker must release it' : `${rp.outputBags} × ${fmtKg(rp.targetBagSize)} · recorded by ${userName(rp.requestedBy)}`, qty: fmtKg(rp.inputQty), sourceId: rp.id, link: link('stock/godowns', rp.id), action: 'Review & release', urgent: false });
+  for (const x of openSuggestions(scopedSuggestions(db, actor, now)).filter((v) => v.reviewerId === actor.id))
+    items.push({ key: `rpl:${x.key}`, kind: 'plan', title: `Review replenishment: ${x.title}`, detail: `${x.qtyLabel} suggested${x.needsConfirmation ? ' · stale partner data — confirm stock first' : ''}${x.review?.staleReason === 'qty' ? ' · quantity changed since last review' : x.review?.staleReason === 'data' ? ' · confirmation expired since last review' : ''}`, qty: x.qtyLabel, sourceId: x.key, link: link('planning/replenish', x.key), action: 'Review' });
   return items;
 }
 

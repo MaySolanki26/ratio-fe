@@ -3,6 +3,8 @@ import { STAGES, stageInfo } from '../../domain/rentio/data';
 import { activateRoute, setEquipment } from '../../domain/rentio/people';
 import type { StageCode } from '../../domain/rentio/types';
 import { useAct, useR } from '../store';
+import { RouteGraphic } from './_graphA';
+import { wsBase } from '../../lib/routes';
 import { scopedLots } from '../../domain/rentio/scope';
 import { Details, FormButton, ImplNote, Kpi, KpiRow, PageLink, Panel, RPage, Status, Table, Who, fmtDay, fmtTime, str, useCan, useFocusId } from '../ui';
 
@@ -17,7 +19,7 @@ const COMPLETENESS = [
 ];
 
 export default function RouteSetup() {
-  const { s, actor } = useR();
+  const { s, db, actor, now } = useR();
   const focus = useFocusId();
   const run = useAct();
   const can = useCan();
@@ -37,6 +39,8 @@ export default function RouteSetup() {
         <Kpi label="Lots on earlier versions" value={lotsOnOld} note="keep their original route" />
         <Kpi label="Equipment released" value={`${s.equipment.filter((e) => e.status === 'released').length}/${s.equipment.length}`} tone={s.equipment.some((e) => e.status !== 'released') ? 'warning' : 'success'} />
       </KpiRow>
+
+      <RouteGraphic s={s} actor={actor} now={now} base={wsBase(db.session.workspaceId)} />
 
       <Panel
         title={`Route v${s.route.version}`}

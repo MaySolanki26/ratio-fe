@@ -23,6 +23,7 @@ function saveBackup() {
   URL.revokeObjectURL(url);
 }
 import { act, newKey, runStep, useR } from '../store';
+import { LotTrace } from '../LotTrace';
 import { Grid, Kpi, KpiRow, LotLink, PageLink, Panel, Qty, RPage, Sim, Status, Table, fmtTime } from '../ui';
 
 const EXPECTED: [string, number][] = [
@@ -208,6 +209,8 @@ export default function Journey() {
           )}
         </div>
       </Grid>
+
+      {s.lots['RT-001'] && <LotTrace rootId="RT-001" />}
 
       <Panel title="Exception scenarios" meta="Separate fictional cases built with the same services — they never touch RT-001">
         <Table

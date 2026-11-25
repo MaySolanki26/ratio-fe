@@ -8,6 +8,7 @@ import { outstanding, runTiming } from '../../domain/rentio/ops';
 import type { StageCode } from '../../domain/rentio/types';
 import { fmtKg, sum } from '../../domain/rentio/units';
 import { newKey, useAct, useR } from '../store';
+import { CloseGraphics } from './_graphA';
 import { readScope, scopedHandovers, scopedRuns } from '../../domain/rentio/scope';
 import { Details, ImplNote, Kpi, KpiRow, LotLink, Panel, Ref, RPage, Status, Table, Who, fmtTime } from '../ui';
 
@@ -57,6 +58,7 @@ export default function DailyClose() {
         <Kpi label="Active holds" value={holds.length} />
         <Kpi label="Pending approvals" value={approvals.length} />
       </KpiRow>
+      <CloseGraphics completed={completed} open={open} now={now} />
       <Panel title="Completed today">
         <Table rows={completed} rowKey={(r) => r.id} empty="No runs completed on this date." cols={[
           { key: 'id', label: 'Run', render: (r) => <Ref>{r.id}</Ref> },

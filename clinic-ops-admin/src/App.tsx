@@ -1,14 +1,15 @@
-import { useEffect } from 'react';
-import { BrowserRouter, Link, Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { useEffect, useState, type ReactNode } from 'react';
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { wsBase } from './lib/routes';
 import { getDb } from './services/db';
-import { useActor } from './services/hooks';
+import { useActor, useRevision } from './services/hooks';
 import { getWorkspace } from './services/registry';
-import { switchSession } from './services/settings';
+import { isSignedIn, switchSession, usesLoginGate } from './services/settings';
 import { domain, organization } from './domain/active';
 import { AppShell } from './components/shell/AppShell';
 import { ErrorState, NoAccess, ToastProvider } from './components/primitives/feedback';
-import { actorFor, can } from './services/authz';
+import { can } from './services/authz';
+import RentioLogin, { roleLanding } from './rentio/Login';
 import { TooltipLayer } from './components/primitives/TooltipLayer';
 import { ConfirmHost } from './components/primitives/overlay';
 import { DashboardPage } from './pages/DashboardPage';
@@ -52,7 +53,7 @@ function WorkspaceGate() {
       <Routes>
         <Route path="dashboard" element={domain().id === 'rentio' ? <RentioDashboard /> : <DashboardPage />} />
         <Route path="scheduling/schedule" element={<SchedulePage />} />
-        <Route path="work/inbox" element={<InboxPage />} />
+        <Route path="work/inbox" element={<LegacyInbox />} />
         <Route path="admin/studio" element={<StudioPage />} />
         <Route path="admin/access" element={<AccessPage />} />
         <Route path="admin/access/roles/:roleId" element={<RolePage />} />
@@ -97,8 +98,38 @@ function ResourceRoute({ kind }: { kind: 'list' | 'new' | 'edit' | 'record' }) {
 function RootRedirect() {
   const { workspaceId, userId } = getDb().session;
   // Rentio: staff land on My work; the owner overview is for roles that can see it
-  if (domain().id === 'rentio' && !can(actorFor(userId, workspaceId), 'ct.view')) return <Navigate to={`${wsBase(workspaceId)}/home/my-work`} replace />;
+  if (domain().id === 'rentio') return <Navigate to={roleLanding(userId, workspaceId)} replace />;
   return <Navigate to={`${wsBase(workspaceId)}/dashboard`} replace />;
+}
+
+/** Old Work-inbox bookmarks: Rentio's inbox is Home › Inbox; the clinic keeps its own Work inbox page. */
+function LegacyInbox() {
+  const { ws } = useParams();
+  const { search } = useLocation();
+  if (domain().id === 'rentio') return <Navigate to={`${wsBase(ws ?? getDb().session.workspaceId)}/home/inbox${search}`} replace />;
+  return <InboxPage />;
+}
+
+/**
+ * Rentio demo login gate: signed out (or a fresh browser) → the login screen, remembering the
+ * requested URL. Back / refresh after logout land here again because the signed-out marker is
+ * persisted. The clinic pack keeps its automatic session (isSignedIn() is always true there).
+ */
+function RequireSignIn({ children }: { children: ReactNode }) {
+  useRevision();
+  const location = useLocation();
+  const [, setTick] = useState(0);
+  // another tab signing in/out changes only the marker key — re-check the gate
+  useEffect(() => {
+    const on = (e: StorageEvent) => e.key?.endsWith('.signin') && setTick((t) => t + 1);
+    window.addEventListener('storage', on);
+    return () => window.removeEventListener('storage', on);
+  }, []);
+  if (!isSignedIn()) {
+    const here = location.pathname + location.search;
+    return <Navigate to={here === '/' ? '/login' : `/login?next=${encodeURIComponent(here)}`} replace />;
+  }
+  return <>{children}</>;
 }
 
 export default function App() {
@@ -108,17 +139,41 @@ export default function App() {
       <ConfirmHost />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<RootRedirect />} />
+          <Route path="/login" element={usesLoginGate() ? <RentioLogin /> : <RootRedirect />} />
+          <Route
+            path="/"
+            element={
+              <RequireSignIn>
+                <RootRedirect />
+              </RequireSignIn>
+            }
+          />
           <Route
             path="/u/:userSlug/my-work"
             element={
-              <AppShell>
-                <MyWorkRedirect />
-              </AppShell>
+              <RequireSignIn>
+                <AppShell>
+                  <MyWorkRedirect />
+                </AppShell>
+              </RequireSignIn>
             }
           />
-          <Route path="/o/:org/w/:ws/*" element={<WorkspaceGate />} />
-          <Route path="*" element={<RootRedirect />} />
+          <Route
+            path="/o/:org/w/:ws/*"
+            element={
+              <RequireSignIn>
+                <WorkspaceGate />
+              </RequireSignIn>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <RequireSignIn>
+                <RootRedirect />
+              </RequireSignIn>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </ToastProvider>

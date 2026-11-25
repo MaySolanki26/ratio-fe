@@ -121,6 +121,10 @@ export interface PersonalSettings {
   defaultViews: Record<string, string>;
   /** Personal calendar colours per resource: what events are coloured by and the user's colour per value (owner rule 97). */
   calendarColors?: Record<string, { by: string; colors: Record<string, string> }>;
+  /** true once the user picked a colour mode themselves (Rentio: unconfigured users get light, never the OS default). */
+  themeSet?: boolean;
+  /** Rentio Inbox read state for THIS user: item key → when read, plus a title snapshot so finished items can be listed. */
+  inboxRead?: Record<string, { at: string; title: string; link: string }>;
 }
 
 export interface Db {

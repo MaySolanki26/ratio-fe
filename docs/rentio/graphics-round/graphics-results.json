@@ -1,0 +1,545 @@
+{
+  "at": "2026-11-25T03:08:35.622Z",
+  "consoleErrors": [],
+  "results": [
+    {
+      "role": "owner",
+      "path": "dashboard",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 6,
+      "titles": [
+        "Where the stock is now",
+        "Production route — material at each stage",
+        "Factory finished stock by grade",
+        "Delivery outcome by distributor",
+        "Open exceptions by area",
+        "Runs in progress — planned vs actual"
+      ],
+      "tables": 4,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "01-owner-desktop-light-dashboard.png"
+    },
+    {
+      "role": "factory-head",
+      "path": "production/stages",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 4,
+      "titles": [
+        "Process route — material at each stage",
+        "Load by stage",
+        "Runs — planned vs actual",
+        "Where each finished run's input went"
+      ],
+      "tables": 3,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "02-factory-head-desktop-light-production_stages.png"
+    },
+    {
+      "role": "stage-owner-anil",
+      "path": "production/stage?stage=OIL",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 3,
+      "titles": [
+        "Oiling — material flow",
+        "Runs — planned vs actual",
+        "Recent runs — where the input went"
+      ],
+      "tables": 2,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "03-stage-owner-anil-desktop-light-production_stage_stage_OIL.png"
+    },
+    {
+      "role": "owner",
+      "path": "finance/reports?focus=RT-001",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 5,
+      "titles": [
+        "RT-001 — route this lot took",
+        "RT-001 — where all 10,020 kg is now",
+        "Each stage pass — where its input went",
+        "Stage timing — planned vs actual",
+        "RT-001 — genealogy"
+      ],
+      "tables": 3,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "04-owner-desktop-light-finance_reports_focus_RT-001.png"
+    },
+    {
+      "role": "owner",
+      "path": "presenter/journey",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 5,
+      "titles": [
+        "RT-001 — route this lot took",
+        "RT-001 — where all 10,020 kg is now",
+        "Each stage pass — where its input went",
+        "Stage timing — planned vs actual",
+        "RT-001 — genealogy"
+      ],
+      "tables": 3,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "05-owner-desktop-light-presenter_journey.png"
+    },
+    {
+      "role": "godown",
+      "path": "stock/godowns",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Stack map — what each stack holds against its capacity",
+        "Godown flow"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "06-godown-desktop-light-stock_godowns.png"
+    },
+    {
+      "role": "godown",
+      "path": "stock/inventory",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Where the stock is",
+        "Stock by condition"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "07-godown-desktop-light-stock_inventory.png"
+    },
+    {
+      "role": "godown",
+      "path": "stock/byproducts",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 3,
+      "titles": [
+        "Husk flow",
+        "Churi flow",
+        "Husk & Churi — what happened to it"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "08-godown-desktop-light-stock_byproducts.png"
+    },
+    {
+      "role": "qc",
+      "path": "stock/holds",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Stock stopped by each active hold",
+        "Physical counts vs system"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "09-qc-desktop-light-stock_holds.png"
+    },
+    {
+      "role": "back-office",
+      "path": "procurement/intake",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Buying flow",
+        "Each purchase — received vs still to come"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "10-back-office-desktop-light-procurement_intake.png"
+    },
+    {
+      "role": "factory-head",
+      "path": "masters/route",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 1,
+      "titles": [
+        "Active route v1"
+      ],
+      "tables": 0,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "11-factory-head-desktop-light-masters_route.png"
+    },
+    {
+      "role": "factory-head",
+      "path": "production/grading",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "How each grading run split",
+        "Graded stock in stock now"
+      ],
+      "tables": 2,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "12-factory-head-desktop-light-production_grading.png"
+    },
+    {
+      "role": "factory-head",
+      "path": "production/handovers",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Open handovers",
+        "Each open handover"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "13-factory-head-desktop-light-production_handovers.png"
+    },
+    {
+      "role": "factory-head",
+      "path": "production/close",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Output by run on this date",
+        "Open runs carried forward"
+      ],
+      "tables": 2,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "14-factory-head-desktop-light-production_close.png"
+    },
+    {
+      "role": "back-office",
+      "path": "distribution/orders",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Order SO-0006 — where it is",
+        "Fulfilment by order"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "15-back-office-desktop-light-distribution_orders.png"
+    },
+    {
+      "role": "distributor-D01",
+      "path": "distribution/distributors",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Distributor stock",
+        "D01 — goods flow"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "16-distributor-D01-desktop-light-distribution_distributors.png"
+    },
+    {
+      "role": "back-office",
+      "path": "distribution/logistics",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Freight per trip",
+        "Delivery outcome per trip"
+      ],
+      "tables": 2,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "17-back-office-desktop-light-distribution_logistics.png"
+    },
+    {
+      "role": "salesman",
+      "path": "sales/salesman",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Offline order queue",
+        "Retailer orders by distributor"
+      ],
+      "tables": 2,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "18-salesman-desktop-light-sales_salesman.png"
+    },
+    {
+      "role": "qc",
+      "path": "sales/returns",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Complaint lifecycle",
+        "Returned goods by decision"
+      ],
+      "tables": 0,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "19-qc-desktop-light-sales_returns.png"
+    },
+    {
+      "role": "accounts",
+      "path": "finance/tally",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Documents by sync status",
+        "Value by document type"
+      ],
+      "tables": 2,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "20-accounts-desktop-light-finance_tally.png"
+    },
+    {
+      "role": "hr",
+      "path": "hr/attendance",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 1,
+      "titles": [
+        "Hours worked this period"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "21-hr-desktop-light-hr_attendance.png"
+    },
+    {
+      "role": "factory-head",
+      "path": "planning/season",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 1,
+      "titles": [
+        "Today: output against plan"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "22-factory-head-desktop-light-planning_season.png"
+    },
+    {
+      "role": "owner",
+      "path": "home/alerts",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 1,
+      "titles": [
+        "Open exceptions by type"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "23-owner-desktop-light-home_alerts.png"
+    },
+    {
+      "role": "owner",
+      "path": "home/approvals",
+      "vp": "desktop",
+      "theme": "light",
+      "figures": 1,
+      "titles": [
+        "Pending requests by type"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "24-owner-desktop-light-home_approvals.png"
+    },
+    {
+      "role": "owner",
+      "path": "dashboard",
+      "vp": "phone",
+      "theme": "light",
+      "figures": 6,
+      "titles": [
+        "Where the stock is now",
+        "Production route — material at each stage",
+        "Factory finished stock by grade",
+        "Delivery outcome by distributor",
+        "Open exceptions by area",
+        "Runs in progress — planned vs actual"
+      ],
+      "tables": 4,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "25-owner-phone-light-dashboard.png"
+    },
+    {
+      "role": "owner",
+      "path": "dashboard",
+      "vp": "desktop",
+      "theme": "dark",
+      "figures": 6,
+      "titles": [
+        "Where the stock is now",
+        "Production route — material at each stage",
+        "Factory finished stock by grade",
+        "Delivery outcome by distributor",
+        "Open exceptions by area",
+        "Runs in progress — planned vs actual"
+      ],
+      "tables": 4,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "26-owner-desktop-dark-dashboard.png"
+    },
+    {
+      "role": "factory-head",
+      "path": "production/stages",
+      "vp": "phone",
+      "theme": "light",
+      "figures": 4,
+      "titles": [
+        "Process route — material at each stage",
+        "Load by stage",
+        "Runs — planned vs actual",
+        "Where each finished run's input went"
+      ],
+      "tables": 3,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "27-factory-head-phone-light-production_stages.png"
+    },
+    {
+      "role": "factory-head",
+      "path": "production/stages",
+      "vp": "desktop",
+      "theme": "dark",
+      "figures": 4,
+      "titles": [
+        "Process route — material at each stage",
+        "Load by stage",
+        "Runs — planned vs actual",
+        "Where each finished run's input went"
+      ],
+      "tables": 3,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "28-factory-head-desktop-dark-production_stages.png"
+    },
+    {
+      "role": "stage-owner-anil",
+      "path": "production/stage?stage=OIL",
+      "vp": "phone",
+      "theme": "light",
+      "figures": 3,
+      "titles": [
+        "Oiling — material flow",
+        "Runs — planned vs actual",
+        "Recent runs — where the input went"
+      ],
+      "tables": 2,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "29-stage-owner-anil-phone-light-production_stage_stage_OIL.png"
+    },
+    {
+      "role": "stage-owner-anil",
+      "path": "production/stage?stage=OIL",
+      "vp": "desktop",
+      "theme": "dark",
+      "figures": 3,
+      "titles": [
+        "Oiling — material flow",
+        "Runs — planned vs actual",
+        "Recent runs — where the input went"
+      ],
+      "tables": 2,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "30-stage-owner-anil-desktop-dark-production_stage_stage_OIL.png"
+    },
+    {
+      "role": "owner",
+      "path": "finance/reports?focus=RT-001",
+      "vp": "phone",
+      "theme": "light",
+      "figures": 5,
+      "titles": [
+        "RT-001 — route this lot took",
+        "RT-001 — where all 10,020 kg is now",
+        "Each stage pass — where its input went",
+        "Stage timing — planned vs actual",
+        "RT-001 — genealogy"
+      ],
+      "tables": 3,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "31-owner-phone-light-finance_reports_focus_RT-001.png"
+    },
+    {
+      "role": "owner",
+      "path": "finance/reports?focus=RT-001",
+      "vp": "desktop",
+      "theme": "dark",
+      "figures": 5,
+      "titles": [
+        "RT-001 — route this lot took",
+        "RT-001 — where all 10,020 kg is now",
+        "Each stage pass — where its input went",
+        "Stage timing — planned vs actual",
+        "RT-001 — genealogy"
+      ],
+      "tables": 3,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "32-owner-desktop-dark-finance_reports_focus_RT-001.png"
+    },
+    {
+      "role": "distributor-D01",
+      "path": "distribution/distributors",
+      "vp": "phone",
+      "theme": "light",
+      "figures": 2,
+      "titles": [
+        "Distributor stock",
+        "D01 — goods flow"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "33-distributor-D01-phone-light-distribution_distributors.png"
+    },
+    {
+      "role": "distributor-D01",
+      "path": "distribution/distributors",
+      "vp": "desktop",
+      "theme": "dark",
+      "figures": 2,
+      "titles": [
+        "Distributor stock",
+        "D01 — goods flow"
+      ],
+      "tables": 1,
+      "pageScroll": false,
+      "noAccess": false,
+      "screenshot": "34-distributor-D01-desktop-dark-distribution_distributors.png"
+    }
+  ]
+}

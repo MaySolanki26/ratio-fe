@@ -6,10 +6,15 @@ import { readScope, scopedRuns } from '../../domain/rentio/scope';
 import { fmtDuration, fmtKg } from '../../domain/rentio/units';
 import { stageFunnel } from '../../domain/rentio/views';
 import { useAct, useR } from '../store';
+import { wsBase } from '../../lib/routes';
+import { CAT, ChartGrid, FlowChain, MASS_SEGS, massRows, RunTimeline, StackBars, STATUS } from '../graphics';
+import { routeFlow } from '../flows';
+import { stageName } from '../../domain/rentio/views';
 import { Details, Eta, FormButton, fromLocalInput, ImplNote, Kpi, KpiRow, LotLink, PageLink, Panel, Qty, RPage, Status, str, Table, toLocalInput, Who, fmtTime, useFocusId } from '../ui';
 
 export default function StageBoard() {
-  const { s, now, actor } = useR();
+  const { s, now, actor, db } = useR();
+  const base = wsBase(db.session.workspaceId);
   const act = useAct();
   const focus = useFocusId();
   const sc = readScope(actor);
@@ -30,6 +35,33 @@ export default function StageBoard() {
         <Kpi label="Ready to issue" value={fmtKg(total('output'))} />
         <Kpi label="Late or paused runs" value={allRuns.filter((r) => r.t.status !== 'On Track').length} tone={allRuns.some((r) => r.t.status === 'Delayed') ? 'danger' : undefined} />
       </KpiRow>
+      <FlowChain title="Process route — material at each stage" caption="kg arriving + queued + running + ready · outlined = late or paused · open a stage to act" nodes={routeFlow(s, actor, now, base)} />
+      <ChartGrid>
+        <StackBars
+          title="Load by stage"
+          caption="kg by state — the parts never overlap, so each bar is the stage's total material"
+          rowHeader="Stage"
+          segs={[
+            { key: 'pendingIn', label: 'Arriving (handover)', color: CAT[1] },
+            { key: 'queue', label: 'Queued', color: CAT[2] },
+            { key: 'running', label: 'Running', color: CAT[0] },
+            { key: 'held', label: 'Paused (on hold)', color: STATUS.warn, pattern: true },
+            { key: 'output', label: 'Ready to issue', color: CAT[3] },
+          ]}
+          rows={funnel.map((f) => ({ id: f.code, label: stageName(f.code), text: stageName(f.code), to: `${base}/production/stage?stage=${f.code}`, values: { pendingIn: f.pendingIn, queue: f.queue, running: f.running, held: f.held, output: f.output } }))}
+          empty="No material at any stage."
+        />
+        <RunTimeline title="Runs — planned vs actual" caption="Open runs and the latest finished ones" runs={[...allRuns.map((r) => r.run), ...done.slice(0, Math.max(0, 6 - allRuns.length))]} now={now} labelOf={(r) => `${stageName(r.stage)} · ${r.inputLotId}`} />
+      </ChartGrid>
+      <StackBars
+        title="Where each finished run's input went"
+        caption="kg per run, latest first · good output, rework, husk, churi, rejects, loss, not processed"
+        rowHeader="Run"
+        segs={MASS_SEGS}
+        rows={massRows(done.slice(0, 10), (r) => `${stageName(r.stage)} · ${r.inputLotId}`, (r) => `${base}/production/stage?stage=${r.stage}`)}
+        focus={focus}
+        empty="No finished runs yet."
+      />
       <Panel title="Stages" meta={`Process route: ${s.route.stages.join(' → ')} → finished godown`}>
         <Table
           rows={funnel}

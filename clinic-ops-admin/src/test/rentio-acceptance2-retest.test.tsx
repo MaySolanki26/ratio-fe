@@ -190,13 +190,15 @@ describe('#5 — module shortcuts land on the first permitted page', () => {
     d.unmount();
   });
 
-  it('the rail work-queue shortcut opens Rentio My work (not the clinic inbox route)', () => {
+  it('the rail work-queue shortcut opens the Rentio Inbox (not the clinic inbox route)', () => {
     __setDb(createDb(new Date(), { dataset: 'demo' }));
     switchSession('u_dinesh', 'plant1');
     window.history.pushState({}, '', '/o/rentio/w/plant1/sales/returns');
     const r = render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /^My work/ }));
-    expect(window.location.pathname).toBe('/o/rentio/w/plant1/home/my-work');
+    // shell item 6: the rail inbox button opens Home › Inbox; My work stays the staff landing
+    fireEvent.click(screen.getByRole('button', { name: /^Inbox/ }));
+    expect(window.location.pathname).toBe('/o/rentio/w/plant1/home/inbox');
+    expect(r.container.querySelector('main')!.textContent).not.toMatch(/Page not found|No access/);
     r.unmount();
   });
 });

@@ -171,8 +171,10 @@ export const rentioModules: ModuleDefinition[] = [
     id: 'home', label: 'Home', icon: 'layout-grid', resources: [], pages: [
       { id: 'dashboard', label: 'Owner overview', icon: 'layout-dashboard', path: 'dashboard', capability: 'ct.view' },
       pg('home', 'my-work', 'My work', 'inbox'),
+      pg('home', 'inbox', 'Inbox', 'bell'),
       pg('home', 'approvals', 'Approvals', 'check-square'),
       pg('home', 'alerts', 'Alerts & exceptions', 'alert'),
+      pg('home', 'incidents', 'Incidents', 'clipboard-list'),
       pg('home', 'decisions', 'Decision register', 'scroll-text'),
     ],
   },
@@ -216,7 +218,7 @@ export const rentioModules: ModuleDefinition[] = [
     ],
   },
   { id: 'hr', label: 'HR & payroll', icon: 'id-card', resources: ['employees'], pages: [pg('hr', 'attendance', 'Attendance & payroll', 'calendar-days')] },
-  { id: 'planning', label: 'Season & planning', icon: 'calendar', resources: [], pages: [pg('planning', 'season', 'Season, plan & forecast', 'calendar')] },
+  { id: 'planning', label: 'Season & planning', icon: 'calendar', resources: [], pages: [pg('planning', 'season', 'Season, plan & forecast', 'calendar'), pg('planning', 'replenish', 'Replenishment suggestions', 'reset')] },
   { id: 'presenter', label: 'Presenter tools', icon: 'sparkles', resources: [], pages: [pg('presenter', 'journey', 'Demo script & RT-001 trace', 'activity')] },
   {
     id: 'admin', label: 'Administration', icon: 'settings', resources: [], pages: [

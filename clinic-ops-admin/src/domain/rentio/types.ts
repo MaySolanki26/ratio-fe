@@ -289,8 +289,8 @@ export interface Shipment {
   dispatchedAt: string;
   dispatchedBy: string;
   weights?: { vehicleGross: Grams; vehicleTare: Grams; packagingTare: Grams };
-  status: 'in_transit' | 'received' | 'partially_received' | 'disputed';
-  receipt?: { good: Grams; damaged: Grams; short: Grams; excess: Grams; by: string; at: string; note?: string };
+  status: 'in_transit' | 'received' | 'partially_received' | 'disputed' | 'refused';
+  receipt?: { good: Grams; damaged: Grams; short: Grams; excess: Grams; by: string; at: string; note?: string; refused?: Grams };
   disputeId?: string;
 }
 
@@ -384,6 +384,85 @@ export interface Trip {
   freightBill?: { amount: Paise; ref: string; status: 'matched' | 'mismatch' | 'approved'; by: string };
   status: 'open' | 'closed';
   createdAt: string;
+  /** Ordered multi-stop delivery (FR-112 / WF-14): one stop per independent shipment. */
+  stops?: TripStop[];
+}
+
+export interface TripStop {
+  seq: number;
+  shipmentId: string;
+  distributorId: string;
+  outcome?: 'accepted' | 'part_accepted' | 'refused';
+  /** Signed-in user who recorded the outcome (scoped to that distributor). */
+  recordedBy?: string;
+  at?: string;
+  /** Person physically receiving at the stop and the proof reference (POD photo/challan). */
+  receiverName?: string;
+  evidence?: string;
+  reason?: string;
+  acceptedQty?: Grams;
+  refusedQty?: Grams;
+  damagedQty?: Grams;
+  /** Authorized disposition of refused / unresolved quantity. */
+  disposition?: { action: 'return_to_factory'; qty: Grams; by: string; at: string; reason: string };
+}
+
+/** Controlled repacking (FR-103 / BR-029 / WF-13): proposed, QC-released, then posted once. */
+export interface Repack {
+  id: string;
+  sourceLotId: string;
+  fromLoc: string;
+  toLoc: string;
+  inputQty: Grams;
+  sourceBagSize: Grams;
+  openedBags: number;
+  targetBagSize: Grams;
+  outputBags: number;
+  measuredOutput: Grams;
+  packagingLotId: string;
+  loss: Grams;
+  lossReason?: string;
+  /** Source quantity left untouched in the stack after this repack (evidence). */
+  residualAtRequest: Grams;
+  status: 'pending_qc' | 'posted' | 'rejected';
+  requestedBy: string;
+  requestedAt: string;
+  decidedBy?: string;
+  decidedAt?: string;
+  decisionNote?: string;
+  childLotId?: string;
+  txId?: string;
+}
+
+/** Grouped incident (FR-115): a named parent over live child alerts; children are never cleared by the parent. */
+export interface Incident {
+  id: string;
+  title: string;
+  leadId: string;
+  status: 'open' | 'closed';
+  /** `roles` / `scope` snapshot the alert's read rule when linked, so a resolved child stays scoped after the live alert is gone. */
+  children: { ref: string; key: string; title: string; ownerId: string; link: string; addedAt: string; addedBy: string; roles?: string[]; scope?: { loc?: string; distributorId?: string; stage?: StageCode }; detached?: { by: string; at: string; reason: string } }[];
+  notes: { at: string; by: string; text: string }[];
+  createdBy: string;
+  createdAt: string;
+  closedBy?: string;
+  closedAt?: string;
+  closeNote?: string;
+}
+
+/** Staff review of a derived replenishment suggestion (FR-101/106/113/117). Never posts stock or orders. */
+export interface ReplenishReview {
+  id: string;
+  key: string;
+  decision: 'accepted' | 'deferred';
+  qty: Grams;
+  reason: string;
+  by: string;
+  at: string;
+  inputs: string;
+  handoff?: string;
+  /** Data the review relied on: live app feed, an explicit confirmation, or stale figures (defer only). Absent on older records. */
+  basis?: 'feed' | 'confirmed' | 'stale';
 }
 
 export interface RateCard {
@@ -563,6 +642,12 @@ export interface RentioState {
   /** Closed accounting periods (YYYY-MM, IST); postings dated inside are refused. */
   periodLocks?: { period: string; by: string; at: string; reopened?: { by: string; at: string; reason: string } }[];
   closes?: { id: string; date: string; stage: string; by: string; at: string; carried: string[]; note?: string }[];
+  /** BA closure round (optional so stored data from earlier versions still loads). */
+  repacks?: Repack[];
+  incidents?: Incident[];
+  replenishReviews?: ReplenishReview[];
+  /** Explicit confirmations of stale partner stock (never automatic). */
+  partnerConfirmations?: { distributorId: string; kg: Grams; by: string; at: string; note: string }[];
   idempotency: Record<string, { txId: string; at: string; result: unknown }>;
   txLog: { id: string; at: string; actorId: string; label: string; ref?: string }[];
 }

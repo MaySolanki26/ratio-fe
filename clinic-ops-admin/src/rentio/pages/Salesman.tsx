@@ -8,6 +8,8 @@ import { fmtINR, fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
 import { Details, FormButton, Grid, ImplNote, num, Panel, Qty, Ref, RPage, Sim, Status, str, Table, useCan, useFocusId, fmtTime } from '../ui';
 import { FocusMissing } from './_distHelpers';
+import { SalesmanCharts } from './_graphB';
+import { wsBase } from '../../lib/routes';
 
 const GRADES = ['A1', 'B1', 'A2', 'B2'];
 
@@ -286,6 +288,7 @@ export default function Salesman() {
           </Grid>
         </div>
       </div>
+      <SalesmanCharts s={s} queue={queue} orders={myOrders} base={wsBase(db.session.workspaceId)} />
       <ImplNote>
         Mapped-distributor visibility (FR-050, BR-015) via scope.ts — a salesman with no mapping sees nothing. Rate snapshot at acceptance (FR-051). Offline capture queues requests, not reservations (A5); sync revalidates mapping, rate and stock with one visible outcome per request (FR-052, EC-27). Collections stay provisional until Accounts confirms (FR-108, BR-030). Unknown-lot complaints stay flagged (FR-063). The phone and offline connectivity are simulated; the offline switch is one shared demo device.
       </ImplNote>

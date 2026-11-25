@@ -14,6 +14,7 @@ import { useQuery } from '../../components/primitives/feedback';
 import { cx } from '../../lib/format';
 import { wsBase } from '../../lib/routes';
 import { useAct, useR } from '../store';
+import { ChartGrid, FlowChain, MASS_SEGS, massRows, RunTimeline, StackBars, STATUS } from '../graphics';
 import { BasisChip, Details, Eta, FormButton, type FormValues, fromLocalInput, fromLocalInputAfter,ImplNote, LotLink, num, Panel, Qty, Ref, RPage, Status, Steps, str, Table, toLocalInput, useFocusId, Who, fmtTime } from '../ui';
 
 const OUT_FIELDS: Record<StageCode, { fwd: number; grade?: boolean; rework?: boolean; byp?: boolean; reject?: boolean; oil?: boolean; pack?: boolean }> = {
@@ -296,6 +297,21 @@ export function OutputButton({ run, variant = 'primary' }: { run: StageRun; vari
                 { label: bal.difference === 0 ? 'Balance' : 'Not yet accounted', value: bal.difference === 0 && outs.length ? 'Balanced ✓' : fmtKg(bal.difference), tone: bal.difference === 0 && outs.length ? 'success' : 'danger' },
               ]}
             />
+            <StackBars
+              title="Where the input goes"
+              caption={`bar length = input${add ? ' + oil' : ''} ${fmtKg(bal.input)} · the grey-red part is still unaccounted`}
+              rowHeader="This run"
+              max={Math.max(bal.input, bal.accounted)}
+              segs={[...MASS_SEGS, { key: 'open', label: 'Not yet accounted', color: STATUS.bad, pattern: true }]}
+              rows={[
+                {
+                  id: run.id,
+                  label: 'This run',
+                  text: 'This run',
+                  values: { ...Object.fromEntries(MASS_SEGS.map((m) => [m.key, outs.filter((o) => o.kind === m.key).reduce((a, o) => a + o.qty, 0)])), open: Math.max(0, bal.difference) },
+                },
+              ]}
+            />
           </>
         );
       }}
@@ -463,6 +479,47 @@ export default function StageWork() {
         </div>
       ) : (
         <InlineAlert tone="success">Nothing waiting at {stageName(stage)}. New work appears here when a lot is sent to you.</InlineAlert>
+      )}
+
+      <FlowChain
+        title={`${stageName(stage)} — material flow`}
+        caption="kg at each step of this stage · the outlined step is your next action"
+        nodes={[
+          { key: 'in', label: 'Arriving (sent to you)', value: fmtKg(incoming.reduce((a, h) => a + outstanding(h), 0)), magnitude: incoming.reduce((a, h) => a + outstanding(h), 0), sub: `${incoming.length} handover(s)`, current: !!incoming.length && !runs.some((r) => r.status === 'on_hold'), status: incoming.some((h) => h.received > 0) ? { label: 'Part received', tone: 'warn' } : undefined },
+          { key: 'q', label: 'Received, waiting to start', value: fmtKg(queue.reduce((a, l) => a + at(l.id, stageIn(stage)), 0)), magnitude: queue.reduce((a, l) => a + at(l.id, stageIn(stage)), 0), sub: `${queue.length} lot(s)`, current: !incoming.length && !runs.length && !outputs.length && !!queue.length },
+          {
+            key: 'run',
+            label: 'In process',
+            value: fmtKg(runs.reduce((a, r) => a + r.inputQty, 0)),
+            magnitude: runs.reduce((a, r) => a + r.inputQty, 0),
+            sub: `${runs.length} run(s)`,
+            current: !incoming.length && runs.length > 0,
+            status: runs.some((r) => r.status === 'on_hold') ? { label: 'Paused', tone: 'warn' } : runs.some((r) => runTiming(r, now).status === 'Delayed') ? { label: 'Late', tone: 'bad' } : runs.length ? { label: 'Running', tone: 'info' } : undefined,
+          },
+          {
+            key: 'out',
+            label: 'Ready to issue',
+            value: fmtKg(outputs.reduce((a, l) => a + at(l.id, stageOut(stage)), 0)),
+            magnitude: outputs.reduce((a, l) => a + at(l.id, stageOut(stage)), 0),
+            sub: `${outputs.length} lot(s)`,
+            current: !incoming.length && !runs.length && outputs.length > 0,
+            exits: (() => {
+              const by = (k: string) => done.flatMap((r) => r.outputs.filter((o) => o.kind === k)).reduce((a, o) => a + o.qty, 0);
+              return [
+                by('husk') ? { label: 'Husk (recent runs)', value: fmtKg(by('husk')) } : null,
+                by('churi') ? { label: 'Churi (recent runs)', value: fmtKg(by('churi')) } : null,
+                by('reject') ? { label: 'Rejects (recent runs)', value: fmtKg(by('reject')), tone: 'warn' as const } : null,
+                by('loss') ? { label: 'Loss (recent runs)', value: fmtKg(by('loss')), tone: 'warn' as const } : null,
+              ].filter(Boolean) as { label: string; value: string; tone?: 'warn' }[];
+            })(),
+          },
+        ]}
+      />
+      {(runs.length > 0 || done.length > 0) && (
+        <ChartGrid>
+          <RunTimeline title="Runs — planned vs actual" caption="Working time, holds and time past the planned finish" runs={[...runs, ...done].slice(0, 6)} now={now} labelOf={(r) => r.inputLotId} />
+          <StackBars title="Recent runs — where the input went" caption="kg per finished run" rowHeader="Lot" segs={MASS_SEGS} rows={massRows(done, (r) => r.inputLotId)} focus={focus} empty="No finished runs yet." />
+        </ChartGrid>
       )}
 
       {incoming.length > 0 && (

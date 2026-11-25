@@ -10,6 +10,7 @@ import { alertsFor, ctaFor, myWork, type WorkItem } from '../../domain/rentio/vi
 import { useR } from '../store';
 import { Details, PageLink, Panel, RPage, Status } from '../ui';
 import { EtaButton, HoldResumeButton, IssueButton, OutputButton, ReceiveButton, StartButton } from './StageWork';
+import { IncidentTag } from './Alerts';
 
 const ORDER: WorkItem['kind'][] = ['approve', 'check', 'resume', 'eta', 'receive', 'output', 'issue', 'start', 'shipment', 'putaway', 'dispatch', 'reserve', 'deliver', 'conflict', 'sync', 'disposition', 'collection', 'payroll', 'hold', 'plan'];
 
@@ -59,6 +60,7 @@ export default function MyWork() {
               {first.detail}
               {first.qty ? ` · ${first.qty}` : ''}
             </div>
+            <IncidentTag sourceId={first.sourceId} />
           </div>
           {actionFor(first, true)}
         </div>
@@ -84,6 +86,7 @@ export default function MyWork() {
                     {i.detail}
                     {i.qty ? ` · ${i.qty}` : ''}
                   </div>
+                  <IncidentTag sourceId={i.sourceId} />
                 </div>
                 {actionFor(i)}
               </li>
@@ -102,6 +105,7 @@ export default function MyWork() {
                   <div className="rt-brief-detail">
                     {a.owner} · {a.detail}
                   </div>
+                  <IncidentTag a={a} />
                 </div>
                 <PageLink to={a.link}>{ctaFor(a, actor)}</PageLink>
               </li>

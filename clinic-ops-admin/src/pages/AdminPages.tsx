@@ -829,7 +829,7 @@ export function SettingsPage() {
               <span className="field-label">Mode</span>
               <div className="segmented" role="radiogroup" aria-label="Colour mode">
                 {(['system', 'light', 'dark'] as const).map((t) => (
-                  <button key={t} type="button" role="radio" aria-checked={s.theme === t} className={cx('seg-btn', s.theme === t && 'is-on')} onClick={() => set({ theme: t })}>
+                  <button key={t} type="button" role="radio" aria-checked={s.theme === t} className={cx('seg-btn', s.theme === t && 'is-on')} onClick={() => set({ theme: t, themeSet: true })}>
                     {t[0].toUpperCase() + t.slice(1)}
                   </button>
                 ))}

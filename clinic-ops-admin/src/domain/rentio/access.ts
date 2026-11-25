@@ -123,6 +123,9 @@ export const rentioRoles: RoleDefinition[] = [
  */
 export const PAGE_ACCESS: Record<string, string[]> = {
   'home/my-work': ['owner', 'factory_head', 'stage_owner', 'back_office', 'qc', 'godown', 'distributor', 'salesman', 'accounts', 'hr', 'admin'],
+  'home/inbox': ['owner', 'factory_head', 'stage_owner', 'back_office', 'qc', 'godown', 'distributor', 'salesman', 'accounts', 'hr', 'admin'],
+  'home/incidents': ['owner', 'factory_head', 'stage_owner', 'back_office', 'qc', 'godown'],
+  'planning/replenish': ['owner', 'factory_head', 'back_office', 'godown', 'distributor'],
   'home/approvals': ['owner', 'factory_head', 'stage_owner', 'back_office', 'qc', 'godown', 'accounts', 'hr'],
   'home/alerts': ['owner', 'factory_head', 'stage_owner', 'back_office', 'qc', 'godown', 'distributor', 'salesman', 'accounts'],
   'home/decisions': ['owner', 'factory_head', 'accounts', 'admin'],

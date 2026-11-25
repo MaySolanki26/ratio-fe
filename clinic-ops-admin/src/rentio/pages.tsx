@@ -27,9 +27,15 @@ import Tally from './pages/Tally';
 import Reports from './pages/Reports';
 import Attendance from './pages/Attendance';
 import Season from './pages/Season';
+import Inbox from './pages/Inbox';
+import Incidents from './pages/Incidents';
+import Replenish from './pages/Replenish';
 
 export const RENTIO_PAGES: Record<string, ComponentType> = {
   'home/my-work': MyWork,
+  'home/inbox': Inbox,
+  'home/incidents': Incidents,
+  'planning/replenish': Replenish,
   'presenter/journey': Journey,
   'home/approvals': Approvals,
   'home/alerts': Alerts,

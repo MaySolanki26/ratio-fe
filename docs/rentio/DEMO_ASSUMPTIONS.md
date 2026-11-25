@@ -138,3 +138,24 @@ RT-001 events are dated 16–24 Nov 2026 IST. The recent exception events (RT-00
 | Retained samples | QC moves a sample to held "QC retained samples" custody; testing or disposal deducts it once | OQ-11 |
 | Excess at distributor receipt | Held as `UNID-EXC-<shipment>` at the distributor's held location, with a receipt dispute | §18 |
 | Demo snapshot (default data set) | RT-001 completed. RT-003: 3,000 kg from fictional Farmer Gita Bai — cleaned (30 kg rejects) and G1 done, issued to Oiling for Anil to receive (≈6 kg oil in the walkthrough). RT-004: 5,000 kg accepted raw in R1. The recent exception events are relative to the build time. | — |
+
+## Added in the BA closure round
+
+None of these values is an approved Rentio policy. All are configurable in `config.ts` (`DEMO.repackLossTolerancePct`, `DEMO.replenish`).
+
+| Assumption | Demo value | Requirement / open question |
+| --- | --- | --- |
+| Repack authority | Godown/Dispatch (or Factory Head) records the measured repack; an **independent QC** user releases it (the recorder can never release). Nothing moves until release. | FR-103, WF-13, BR-029, OQ-02 |
+| Repack loss tolerance | ≤ 1 % of input; above that the repack is refused (use a count adjustment instead). Loss always needs a reason; the input must equal new packs + recorded loss exactly. | FR-103, OQ-11 |
+| Repack target sizes | Only active SKUs of the same grade. Demo adds **SKU-A2-1** (1 kg retail pouch) and **POUCH-1-B01** (220 × 1 kg pouches in stores). | FR-001 |
+| Repacked lot dates | Child keeps the source grade, **manufacturing date and best-before** (never later); genealogy parent = source lot. | BR-029 |
+| Multi-stop outcome authority | Each stop is recorded by that distributor's own user (scope-checked). Refused or part-refused quantity stays in transit custody; only Godown/Dispatch (or Back Office) returns it to factory **Quarantine** for QC. Returned quantity re-opens the order line (not "delivered"). | FR-112, WF-14, EC-61 |
+| Proof at a stop | Receiver name and a proof reference (challan / POD photo name) are required; a reason is required for part accepted and refused. No real photo upload. | FR-112 |
+| Incident authority | Owner or Factory Head create incidents. The lead may be an Owner, Factory Head, Back Office, QC or Godown user. The lead (or Owner/Factory Head) adds notes, detaches children (with a reason) and closes. Closing is refused while any linked child alert is still live. | FR-115, AC-25 |
+| Replenishment — plant raw | Need = raw minimum **12,000 kg** + raw for the finished gap at **75 %** demo yield − raw ready in R1 − open purchases promised within **3 days**. Finished gap = approved unallocated demand (incl. advance bookings, excl. credit hold) + finished minimum **2,000 kg** − free finished stock. Rounded down to 1,000 kg. | FR-101, FR-106, OQ-12 |
+| Replenishment — stores | OIL-B01 min 150 / reorder-to 500 kg, lead 3 d · BAGS-25-B01 min 300 / reorder-to 1,500 bags, lead 4 d · POUCH-1-B01 min 400 / reorder-to 1,000 pouches, lead 5 d. Pouches committed to repacks awaiting QC are deducted from the projection. There is no stores purchase order in the prototype, so the hand-off is an audited review with a link to Purchases. | FR-106, FR-117 |
+| Replenishment — partners | Reorder level = distributor minimum + **2 days × 40 kg/day**; suggest refill to the distributor maximum, in whole 25 kg bags, in the grade the distributor holds most. Data older than **24 h** is stale: Accept is refused until a named user records a confirmed stock figure (valid for 24 h). | FR-113, FR-117, WF-12, AC-26 |
+| Replenishment review | The named reviewer (Kiran for raw and partners, Ravi for stores), or Owner/Factory Head, accepts or defers with a note. Review posts no stock or order; Accept opens the existing Purchase or Factory order form prefilled (`?new=purchase&kg=…`, `?new=order&d=…&grade=…&kg=…`). A changed derived quantity reopens the suggestion. | WF-12 |
+| Owner charts | Finished stock by grade (free / reserved shippable / held-or-expired — exclusive, sums to physical) and delivery outcome by distributor (received good / damaged held / on the road / short-or-refused in transit / returned / settled by approval — exclusive, sums to dispatched). | FR-072, FR-114 |
+| Demo login | Local demo sign-in only (no password). Marker key `rentio.erp.db.v1.signin` = `in`/`out`; no key = fresh browser → chooser. Logout never changes business data. | NFR (no real auth in prototype) |
+| Theme | Light unless the signed-in demo user chose otherwise. A stored per-user `light`/`dark` from before this round is kept as that user's explicit choice; a stored `system` (the old automatic default) counts as **no preference → light**. A new click on any Mode control marks the choice explicit. | UI rule |

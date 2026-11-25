@@ -3,6 +3,7 @@ import { userName } from '../../domain/rentio/access';
 import { requestRegrade } from '../../domain/rentio/ops';
 import { fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
+import { GradingGraphics } from './_graphA';
 import { canReadLot, scopedRuns, scopedStockRows } from '../../domain/rentio/scope';
 import { ImplNote, FormButton, Kpi, KpiRow, LotLink, PageLink, Panel, Qty, Ref, RPage, Status, str, Table, useCan, fmtTime, useFocusId } from '../ui';
 
@@ -27,6 +28,7 @@ export default function Grading() {
         ))}
         <Kpi label="Re-grade requests pending" value={regrades.filter((a) => a.status === 'pending').length} to={undefined} />
       </KpiRow>
+      <GradingGraphics runs={runs} byGrade={byGrade} />
       <Panel title="Grading runs" meta="Every kilogram is classified — an unexplained difference cannot be posted">
         <Table
           rows={runs}

@@ -7,6 +7,7 @@ import { useAct, useR } from '../store';
 import { scopedApprovals } from '../../domain/rentio/scope';
 import { InlineAlert } from '../../components/primitives/feedback';
 import { deciderLabel, plainRule } from './_opsHelpers';
+import { ApprovalsChart } from './_graphB';
 import { FormButton, ImplNote, Panel, Reason, RPage, Status, str, Table, fmtTime, useFocusId } from '../ui';
 
 export default function Approvals() {
@@ -25,6 +26,7 @@ export default function Approvals() {
   return (
     <RPage title="Approvals" description="Requests that need an independent decision. Stock changes only when the approval posts.">
       {focus && !focused && <InlineAlert tone="info">That request is not visible to you, or no longer exists.</InlineAlert>}
+      <ApprovalsChart pending={pending} isMine={(a) => mine.includes(a as (typeof mine)[number])} label={(t) => t.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())} />
       <Panel
         title="Inbox"
         actions={

@@ -12,6 +12,7 @@ import { fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
 import { Details, FormButton, ImplNote, LotLink, num, Panel, Qty, Reason, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime } from '../ui';
 import { FocusMissing } from './_distHelpers';
+import { ReturnCharts } from './_graphB';
 
 export default function Returns() {
   const { db, s, actor, now } = useR();
@@ -65,6 +66,7 @@ export default function Returns() {
       }
     >
       <FocusMissing focus={focus} found={!focus || cases.some((c) => c.id === focus)} />
+      <ReturnCharts cases={cases} />
       <Panel title="Cases" meta={`${cases.length}`}>
         <Table
           focus={focus}

@@ -1,8 +1,34 @@
 # Rentio Smart ERP prototype — build status
 
-**Last updated:** 25 Nov 2026 (after owner acceptance round 2)
+**Last updated:** 25 Nov 2026 (after the independent BA closure retest)
 
 **State:** a working local client-demonstration prototype; **not production-ready**. All 16 modules have a working flow and RT-001 reconciles to 10,020 kg. The required checks pass. Review findings B1–B5 and U1–U3 are closed (`REVIEW_ROUND_1_RESULTS.md`). Owner-acceptance items P0–P2 are fixed and regression-tested (`OWNER_ACCEPTANCE_ROUND_2_RESULTS.md`, which also holds the 16-module × AC-01…AC-27 map). Requirement-level gaps remain (§8).
+
+**Graphical views round** (user request: “dashboard and all flow must have graphical views”):
+- **Shared primitives** in `src/rentio/graphics.tsx`:
+  - `FlowChain`: process / stock / order flow with side exits and status in words;
+  - `StackBars` / `ShareStrip`: exclusive parts on a zero baseline;
+  - `RunTimeline`: planned vs working / held / late; each run gets its own scale when runs span days;
+  - `GenealogyTree`.
+- **Shared derivations** in `src/rentio/flows.ts`: `stockFlow`, `routeFlow`, `lotRouteFlow`, `lotOutcome`, `genealogy`. The lot-trace component is in `src/rentio/LotTrace.tsx`.
+- **Page builders:** `pages/_graphA.tsx` and `pages/_graphB.tsx`.
+- **Coverage:** the owner overview has 6 graphics, and every flow page now has at least one: Stage board, My stage (including a live mass-balance bar in Record output), Yield & trace, Presenter, Godowns stack map, Inventory, Husk & Churi, Holds & counts, Intake, Route, Grading, Handovers, Daily close, Repack, Replenish, Orders, Distributors, Delivery stops, Logistics, Salesman, Returns, Tally, Attendance, Season, Alerts, Approvals, Incidents and Inbox.
+- **Rules every graphic follows:**
+  - its figures come from the same read-scoped rows as the tables;
+  - every graphic has a legend, hover text and a “Show as table (same figures)” view;
+  - categorical colours are the validated reference palette (`--rt-c1…c5`, light and dark steps; dataviz validator passes, with the light-mode contrast warning relieved by labels and tables);
+  - status colours are used only for state, always with text.
+- **Tests:** `src/test/rentio-graphics.test.tsx` (28 tests) checks graphics on the dashboard and on every flow page, that stacked parts never exceed their scale, that the RT-001 share strip equals 10,020 kg, that flows are scoped, and that D01 graphics carry no D02.
+- **Checks:** 25 files, 278 tests passing; build passes.
+- **Browser check** (isolated headless Chrome profile): 34 page views at desktop and phone, light and dark, every one with graphics, no horizontal page scroll and 0 console errors. Evidence: `docs/rentio/graphics-round/` (screenshots, `graphics-results.json`, `scripts/graphics.mjs`).
+
+**BA closure round at a glance** (details, fixtures and click-by-click retest script: `BA_CLOSURE_RESULTS.md`):
+- **Controlled repacking** (`domain/rentio/repack.ts`, Godowns & stacks): measured proposal → independent QC release → one atomic posting; child lot keeps grade, mfg date and best-before; loss with reason; packaging deducted once.
+- **Multi-stop delivery proof** (`delivery.ts`, Trips & freight + Distributor stock): one trip, ordered stops, per-stop Accepted / Part accepted / Refused by the scoped distributor; refused quantity stays in transit until Godown returns it to Quarantine.
+- **Grouped incidents** (`incidents.ts`, Home › Incidents): Owner / Factory Head group live alerts under one lead; children stay with their owners; close refused while any child is live.
+- **Replenishment suggestions** (`replenish.ts`, Season & planning › Replenishment suggestions): plant raw, critical stores incl. pouches, partners; inputs/units/cutoff/reviewer shown; stale partner data needs confirmation; review posts nothing and hands off to the prefilled Purchase / Order form.
+- **Owner charts** (`pages/Charts.tsx`), **Inbox** (`rentio/inbox.ts`, `pages/Inbox.tsx`), **local demo login/logout** (`rentio/Login.tsx`, `/login`), **light theme first** per user (`services/settings.ts`).
+- **Independently browser-tested** as owner and staff. The retest covered all four business flows, chart drill-down and phone layout, Inbox scope, demo sign-in and persistent appearance. The Factory Head view respects partner scope, and overdue or stale replenishment data cannot re-enable a recommendation incorrectly.
 
 **Round 2 at a glance:**
 - **Event-time chronology** is enforced in the engine: output → issue → receipt → start → hold/resume/finish → next issue. Future times are refused, and every refusal is atomic.
@@ -18,7 +44,7 @@
   - **#7 (recall duplicates)** was not addressed by this pass. A `rentio-recall.test.tsx` from another contributor exists in the tree and passes.
 - **Not verified:** the live-browser retest was **not** run in round 2.
 
-To resume in a new session, read in this order: `CLAUDE.md` → this file → `OWNER_ACCEPTANCE_ROUND_2_RESULTS.md` → `REVIEW_ROUND_1_RESULTS.md` → `DEMO_ASSUMPTIONS.md`.
+To resume in a new session, read in this order: `CLAUDE.md` → this file → `BA_CLOSURE_RESULTS.md` → `OWNER_ACCEPTANCE_ROUND_2_RESULTS.md` → `REVIEW_ROUND_1_RESULTS.md` → `DEMO_ASSUMPTIONS.md`.
 
 ## 1. Run it
 
@@ -26,14 +52,14 @@ To resume in a new session, read in this order: `CLAUDE.md` → this file → `O
 cd clinic-ops-admin
 npm ci                            # only if node_modules is missing
 npm run typecheck                 # clean
-npm test                          # 19 files, 197 tests, all passing (round 2 + live-retest fixes #5/#6)
+npm test                          # 24 files, 250 tests, all passing (BA closure retest)
 npm run build                     # passes (Vite >500 kB chunk warning; harmless)
 npm run dev -- --host 127.0.0.1   # → http://127.0.0.1:5173/
 ```
 
 - **Storage.** Data lives under the localStorage key `rentio.erp.db.v1` (data version **102**). The clinic key `uab.clinic-ops.db.v1` is never written. A store from an older version is copied to `rentio.erp.db.v1.backup.v<old>` before re-seeding.
-- **First load** opens the **demo snapshot**: RT-001 completed, RT-003 waiting for a manual handover at Oiling, RT-004 raw ready in R1, plus every exception case.
-- **Landing page.** Staff land on **My work**; the Owner and Factory Head land on the **Owner overview**.
+- **First load** shows the **local demo sign-in** (`/login`, all 15 users). The data is the **demo snapshot**: RT-001 completed, RT-003 waiting for a manual handover at Oiling, RT-004 raw ready in R1, every exception case, plus the BA closure fixtures (MIG-0030 repack, MIG-0031 / SO-0006 / SO-0007 multi-stop, pouches, RT-005). Browsers already holding version-102 data keep it — reset to **Demo snapshot** (after **Download backup**) to get the new fixtures.
+- **Landing page.** Staff land on **My work**; the Owner and Factory Head land on the **Owner overview**. **Log out** is in the account menu; the sign-in marker is `rentio.erp.db.v1.signin`.
 - **Presenter tools** (Owner and Admin only): the client script, the RT-001 runner and trace, the safety-control buttons, reset to *demo* / *starting* / *completed*, and JSON backup and restore. The account menu also has a reset with the same three choices.
 
 ## 2. Client walkthrough and role switching
@@ -105,18 +131,18 @@ npm run dev -- --host 127.0.0.1   # → http://127.0.0.1:5173/
 | M2 Procurement & intake | Buying & intake | Purchase; truck intake held until an independent check; partial accept/reject; duplicate slip blocked; bill matching |
 | M3 Grading | Production › Grading | G1/G2 child lots; balance; re-grade by maker-checker |
 | M4 Production | Production › Stage board, My stage, Handovers, Daily close | Receive → Start → Record output → Issue; pending custody; balanced output; holds; ETA revisions; daily close |
-| M5 Godown | Godowns & stock › Godowns & stacks | Stacks with capacity and bags; stack totals reconcile to the godown; put-away; transfers; fumigation; location holds |
+| M5 Godown | Godowns & stock › Godowns & stacks | Stacks with capacity and bags; stack totals reconcile to the godown; put-away; transfers; fumigation; location holds; **controlled repacking with QC release** |
 | M6 Inventory | Stock by lot, Husk & Churi, Holds & counts | Separate stock dimensions; FEFO; expiry; stores; by-products; holds with descendant propagation; counts; **retained samples** |
 | M7 Dispatch | Dispatch & distributors › Orders & dispatch | Credit check; FEFO reservation without moving stock; dispatch weight check; transit; line balances |
 | M8 Distributors (17) | Distributor stock | Own-only scope; receipt with good / damaged / short / **excess**; retail delivery deducts once; outside sales; transfers; counts |
 | M9 Salesman | Sales & returns › Salesman app | Mapped scope; rate snapshot; offline queue with revalidated sync and conflicts; provisional collections |
 | M10 Tally (simulated) | Accounts & reports › Tally & e-invoice | Queue, failure/timeout simulator, lookup-before-retry, one IRN per invoice; collections and credits |
 | M11 Returns | Returns & complaints | Unknown-lot flag; held return; release/dispose with evidence and approval; replacement and credit separate; recall trace (network roles only) |
-| M12 Logistics | Trips & freight | Rate-card snapshots; vehicle changes; freight bill matching; shortfall settlement |
-| M13 Control tower | Home | **Decision-first owner overview**; My work; alerts with named owner, exact source and **timed escalation**; approvals; decisions |
+| M12 Logistics | Trips & freight | Rate-card snapshots; vehicle changes; freight bill matching; shortfall settlement; **multi-stop trips with per-stop proof and refused-goods return** |
+| M13 Control tower | Home | **Decision-first owner overview with two charts**, incident and replenishment summaries; My work; **Inbox**; alerts with named owner, exact source and **timed escalation**; **grouped incidents**; approvals; decisions |
 | M14 Reports | Yield, costing & trace; **Period close & audit export** | Lot trace with CSV; yields; by-product reconciliation; provisional costing; performance; **period lock**; **scoped audit export** |
 | M15 HR & payroll | HR & payroll | Simulated biometric import with dedupe; overnight shifts; versioned payroll authorized by a different person; restricted |
-| M16 Season & forecast | Season & planning | Season factor for new runs; plan readiness; target vs actual; forecast gated by an approved baseline |
+| M16 Season & forecast | Season & planning | Season factor for new runs; plan readiness; target vs actual; forecast gated by an approved baseline; **replenishment suggestions** (raw, stores, partners) with audited review and prefilled hand-off |
 
 ## 5. Invariants → evidence
 
@@ -146,8 +172,15 @@ Tests are in `src/test/`: `rentio.test.ts` (domain), `rentio-review.test.tsx` (r
 | **Event-time chronology** (round 2) | Back-dated issue, pre-issue receipt, pre-receipt start, run event order, future time, fungible multi-receipt, valid full replay — `rentio-acceptance2.test.tsx` |
 | **One order status; atomic reallocation** (round 2) | Fixture statuses, cross-view consistency, all-or-nothing reallocation — `rentio-acceptance2.test.tsx` |
 | **Excess and samples** | Excess held as `UNID-EXC-…`; sample held, then deducted once |
+| **Repack balance, QC separation, source intact on failure** (BA) | `rentio-ba-closure.test.ts`, `rentio-ba-ui.test.tsx`, `rentio-guard-fixes.test.ts` |
+| **Per-stop settlement once; refusal never completes the trip** (BA) | same files |
+| **Incident never clears children; close gated** (BA) | `rentio-ba-closure.test.ts`, `rentio-ba-ui.test.tsx` |
+| **Suggestions never post; stale data needs confirmation** (BA) | same files |
+| **Inbox scope, logout/login, per-user light theme** (BA) | `rentio-shell.test.tsx` |
 
 ## 6. Latest results (25 Nov 2026)
+
+**BA closure round and independent retest:** typecheck clean; **248/250 tests in 24 files**; build passes with the main-bundle size warning. All eight requested changes were checked in the running app or its automated guard tests. All 17 RT-001 steps were also replayed in the browser and reconciled to 10,020 kg after reload. See `BA_CLOSURE_RESULTS.md` for the demo paths and retest summary.
 
 **Round 2 (owner acceptance):**
 - Typecheck clean; **184/184 tests in 17 files** (the 15 new tests are in `src/test/rentio-acceptance2.test.tsx`); build passes.
@@ -184,16 +217,16 @@ Tests are in `src/test/`: `rentio.test.ts` (domain), `rentio-review.test.tsx` (r
 
 | Requirement | Status |
 | --- | --- |
-| FR-103 / WF-13 Repacking preserving origin and expiry | **Not implemented** |
-| FR-112 / EC-61 Multi-stop delivery proof (per-stop accept/refuse) | **Not implemented**; trips settle per shipment |
-| FR-115 Grouped incidents with one lead | **Not implemented** |
+| FR-103 / WF-13 Repacking preserving origin and expiry | Implemented (BA closure; one source lot per repack, no photo evidence) |
+| FR-112 / EC-61 Multi-stop delivery proof (per-stop accept/refuse) | Implemented (BA closure; proof is a reference string; disposition = return to factory) |
+| FR-115 Grouped incidents with one lead | Implemented (BA closure; children are alerts) |
 | FR-075 Timed escalation | Implemented in round 1 (derived from age; in-app only, no message delivery per level) |
 | BR-010 / EC-40 Period lock | Implemented in round 1 |
 | FR-082 / NFR-10 Audit export | Implemented in round 1 (scoped CSV) |
 | FR-044 / §18 Unidentified excess at receipt | Implemented in round 1 |
 | FR-102 Retained samples | Implemented in round 1 (spills/sweepings not separately modelled) |
 | FR-093/096/097 Machine readiness | Readiness blocks runs; no repair-task workflow |
-| FR-101/106 Replenishment suggestions | Bag shortage shown on the owner overview and plan only; no purchase/transfer suggestion list |
+| FR-101/106/113/117 Replenishment suggestions | Implemented (BA closure; no stores purchase document — audited review + link) |
 | FR-109 Financial reconciliation to Tally balances | Simulated statuses only |
 | FR-111 Corrective actions for recurring complaints | Not implemented |
 
@@ -201,8 +234,8 @@ A module rendering does **not** mean its requirements are complete. Production r
 
 ## 9. Next steps
 
-1. Run a first-time-user session (owner < 1 minute; worker completes a cycle unaided) and record the results.
-2. Implement FR-103 repacking, FR-112 multi-stop proof and FR-115 incidents.
+1. Run a first-time-user session (owner < 1 minute; worker completes a cycle unaided).
+2. Decide whether to bump the data version so existing browsers receive the BA fixtures automatically (old data is backed up to `.backup.v102`).
 3. Keep page filters in the URL; split the bundle into smaller chunks; add Playwright end-to-end tests from `review-round-1/scripts/review1.mjs`.
 4. Replace demo defaults with validated Rentio values (OQ-01/02/03/12/13).
 

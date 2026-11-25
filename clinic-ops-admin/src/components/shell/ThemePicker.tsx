@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { cx } from '../../lib/format';
 import { derivePalette, findPalette, isHex, type Palette, PRESET_PALETTES, suggestFromAccent, themeChartMix } from '../../lib/palette';
 import { useActor, useRevision } from '../../services/hooks';
-import { deleteCustomPalette, getSettings, saveCustomPalette, updateSettings } from '../../services/settings';
+import { deleteCustomPalette, getSettings, saveCustomPalette, setThemeMode, updateSettings } from '../../services/settings';
 import { Button, IconButton } from '../primitives/Button';
 import { Icon } from '../primitives/Icon';
 import { InfoTip } from '../primitives/InfoTip';
@@ -107,7 +107,7 @@ export function ThemePicker({ onEditPalette, showMode = true }: { onEditPalette?
         <span className="field-label">Mode</span>
         <div className="segmented" role="radiogroup" aria-label="Colour mode">
           {(['system', 'light', 'dark'] as const).map((t) => (
-            <button key={t} type="button" role="radio" aria-checked={s.theme === t} className={cx('seg-btn', s.theme === t && 'is-on')} onClick={() => updateSettings(actor.user.id, { theme: t })}>
+            <button key={t} type="button" role="radio" aria-checked={s.theme === t} className={cx('seg-btn', s.theme === t && 'is-on')} onClick={() => setThemeMode(actor.user.id, t)}>
               {t[0].toUpperCase() + t.slice(1)}
             </button>
           ))}

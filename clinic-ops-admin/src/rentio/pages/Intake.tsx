@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom';
 import { InlineAlert } from '../../components/primitives/feedback';
 import { DEMO } from '../../domain/rentio/config';
 import { checkIntake, closePurchase, createPurchase, matchBill, purchaseBalances, purchaseLotCode, recordIntake } from '../../domain/rentio/ops';
@@ -5,6 +6,8 @@ import type { Intake as IntakeRec, Purchase } from '../../domain/rentio/types';
 import { readScope } from '../../domain/rentio/scope';
 import { fmtINR, fmtKg, kg, valueOf } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
+import { IntakeGraphics } from './_graphA';
+import { wsBase } from '../../lib/routes';
 import { FormButton, ImplNote, Kpi, KpiRow, LotLink, Panel, Qty, RPage, Reason, Ref, Status, Table, Who, fmtTime, num, str, useCan, useFocusId } from '../ui';
 
 export default function Intake() {
@@ -17,6 +20,9 @@ export default function Intake() {
   const run = useAct();
   const can = useCan();
   const supplierName = (id: string) => String(db.records.suppliers?.find((x) => x.id === id)?.name ?? id);
+  // replenishment handoff: ?new=purchase&kg=4000 opens the normal purchase form with the suggested quantity
+  const q = new URLSearchParams(useLocation().search);
+  const handoffKg = q.get('new') === 'purchase' ? q.get('kg') ?? '' : undefined;
   const suppliers = (db.records.suppliers ?? []).filter((x) => x.category !== 'stores_vendor').map((x) => ({ value: x.id, label: String(x.name) }));
   const rt001Free = !s.lots['RT-001'] && !s.purchases.some((p) => purchaseLotCode(p) === 'RT-001');
   const bal = (p: Purchase) => purchaseBalances(s, p);
@@ -47,8 +53,9 @@ export default function Intake() {
           disabledReason={createReason}
           title="New farmer / vendor purchase"
           submitLabel="Create purchase"
-          initial={{ supplierId: rt001Free ? 'SUP-001' : '', declaredKg: rt001Free ? '10000' : '', ratePerKg: rt001Free ? '80' : '', lotCode: rt001Free ? 'RT-001' : '', billRef: '' }}
-          note={rt001Free ? 'Prefilled with the RT-001 purchase (fictional Farmer Ramesh, 10,000 kg at ₹80/kg).' : 'Leave the lot code blank — the next number is assigned.'}
+          initial={handoffKg !== undefined ? { supplierId: '', declaredKg: handoffKg, ratePerKg: '', lotCode: '', billRef: '' } : { supplierId: rt001Free ? 'SUP-001' : '', declaredKg: rt001Free ? '10000' : '', ratePerKg: rt001Free ? '80' : '', lotCode: rt001Free ? 'RT-001' : '', billRef: '' }}
+          note={handoffKg !== undefined ? `Prefilled from the reviewed raw-toor replenishment suggestion (${handoffKg} kg). Choose the supplier and agreed rate — nothing is created until you submit.` : rt001Free ? 'Prefilled with the RT-001 purchase (fictional Farmer Ramesh, 10,000 kg at ₹80/kg).' : 'Leave the lot code blank — the next number is assigned.'}
+          defaultOpen={handoffKg !== undefined}
           fields={[
             { key: 'supplierId', label: 'Supplier / farmer', type: 'select', options: suppliers, required: true },
             { key: 'declaredKg', label: 'Declared quantity', type: 'number', unit: 'kg', required: true, min: 0 },
@@ -69,6 +76,8 @@ export default function Intake() {
         <Kpi label="Held at gate (awaiting checker)" value={fmtKg(totals.held)} tone={totals.held ? 'warning' : undefined} note={`${inspecting.length} intake(s)`} />
         <Kpi label="Open purchase balance" value={fmtKg(totals.open)} note="not stock — still to arrive" />
       </KpiRow>
+
+      {plant && <IntakeGraphics s={s} purchases={purchases} base={wsBase(db.session.workspaceId)} supplierName={supplierName} focus={focus} />}
 
       {focus && !purchases.some((p) => p.id === focus) && !intakes.some((i) => i.id === focus) && <InlineAlert tone="warning">That record is not in your area or no longer open.</InlineAlert>}
       <Panel title="Purchases" meta="Several trucks can fill one purchase">

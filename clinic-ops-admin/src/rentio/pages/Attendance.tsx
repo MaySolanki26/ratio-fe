@@ -8,6 +8,7 @@ import * as P from '../../domain/rentio/people';
 import { fmtINR, sum } from '../../domain/rentio/units';
 import { newKey, useAct, useR } from '../store';
 import { Grid, ImplNote, Kpi, KpiRow, Panel, Ref, RPage, Sim, Status, Table, fmtTime, useFocusId } from '../ui';
+import { HoursChart } from './_graphB';
 
 const SMALL_SAMPLE = `employee,time,dir
 EMP-014,2026-11-25T09:00:00+05:30,in
@@ -116,6 +117,7 @@ export default function Attendance() {
             </select>
           }
         >
+          <HoursChart rows={emps.filter((e) => att[e.id]).map((e) => ({ id: String(e.id), name: String(e.name), hours: att[e.id].hours, ot: att[e.id].otHours }))} />
           <Table
             rows={emps.map((e) => ({ e, a: att[e.id] }))}
             rowKey={(r) => r.e.id}

@@ -1,11 +1,15 @@
 /** Trips, vehicle changes, versioned transporter rate cards and freight bill reconciliation. */
 import * as C from '../../domain/rentio/commerce';
 import { computePositions } from '../../domain/rentio/engine';
+import { tripProgress } from '../../domain/rentio/delivery';
 import { scopedShipments } from '../../domain/rentio/scope';
 import { fmtINR, fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
 import { Details, FormButton, Grid, ImplNote, num, Panel, Qty, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime, Who } from '../ui';
 import { FocusMissing } from './_distHelpers';
+import { MultiStopPanel } from './Delivery';
+import { LogisticsCharts } from './_graphB';
+import { wsBase } from '../../lib/routes';
 
 export default function Logistics() {
   const { db, s, actor } = useR();
@@ -19,7 +23,9 @@ export default function Logistics() {
   const trips = s.trips.filter((t) => t.shipmentIds.some((id) => shipIds.has(id))).reverse();
   const disputes = s.disputes.filter((d) => (d.shipmentId ? shipIds.has(d.shipmentId) : true)).reverse();
   const focusDispute = focus ? disputes.find((d) => d.id === focus) : undefined;
-  const focusTrip = focusDispute?.shipmentId ? trips.find((t) => t.shipmentIds.includes(focusDispute.shipmentId!))?.id : focus && trips.some((t) => t.id === focus) ? focus : undefined;
+  // stop alerts link with ?focus=<trip>#<seq>
+  const focusTripId = focus?.split('#')[0];
+  const focusTrip = focusDispute?.shipmentId ? trips.find((t) => t.shipmentIds.includes(focusDispute.shipmentId!))?.id : focusTripId && trips.some((t) => t.id === focusTripId) ? focusTripId : undefined;
   const focusFound = !focus || !!focusDispute || !!focusTrip;
   const transporterOpts = (db.records.transporters ?? []).map((t) => ({ value: String(t.id), label: String(t.name) }));
   const tripOpts = trips.map((t) => ({ value: t.id, label: `${t.vehicle} · ${tName(t.transporterId)} · ${t.shipmentIds.join(', ')} (${t.id})` }));
@@ -74,6 +80,8 @@ export default function Logistics() {
       }
     >
       <FocusMissing focus={focus} found={focusFound} />
+      <LogisticsCharts s={s} trips={trips} base={wsBase(db.session.workspaceId)} focus={focusTrip} />
+      <MultiStopPanel trips={trips} focus={focusTrip} />
       <Panel title="Trips" meta={`${trips.length}`}>
         <Table
           focus={focusTrip}
@@ -81,7 +89,7 @@ export default function Logistics() {
             { key: 'id', label: 'Trip', render: (t) => <Ref>{t.id}</Ref> },
             { key: 'tr', label: 'Transporter', render: (t) => tName(t.transporterId) },
             { key: 'v', label: 'Vehicle / driver', render: (t) => `${t.vehicle} · ${t.driver}` },
-            { key: 'sh', label: 'Shipments', render: (t) => t.shipmentIds.join(', ') },
+            { key: 'sh', label: 'Shipments', render: (t) => (t.stops?.length ? `${t.shipmentIds.join(', ')} · ${tripProgress(s, t).label}` : t.shipmentIds.join(', ')) },
             { key: 'q', label: 'Shipped', num: true, render: (t) => <Qty g={C.tripFreight({ s }, t.id).shipped} /> },
             {
               key: 'transit',

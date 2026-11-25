@@ -11,6 +11,9 @@ import { distributorOverview } from '../../domain/rentio/views';
 import { useAct, useR } from '../store';
 import { Details, FormButton, ImplNote, Kpi, KpiRow, LotLink, num, Panel, Qty, Reason, Ref, RPage, Status, str, Table, useCan, useFocusId, fmtTime } from '../ui';
 import { FocusMissing, Preview, stockOptionLabel } from './_distHelpers';
+import { StopOutcomeButton, stopOfShipment } from './Delivery';
+import { DistributorCharts } from './_graphB';
+import { wsBase } from '../../lib/routes';
 
 export default function Distributors() {
   const { db, s, actor, now } = useR();
@@ -51,7 +54,8 @@ export default function Distributors() {
   const sellable = dRows.filter((r) => r.sellable && r.available > 0);
   const ships = scopedShipments(s, actor);
   const incoming = ships.filter((sh) => sh.toDistributor === d.id && sh.status === 'in_transit');
-  const disputed = ships.filter((sh) => sh.toDistributor === d.id && sh.status === 'disputed');
+  const disputed = ships.filter((sh) => sh.toDistributor === d.id && (sh.status === 'disputed' || sh.status === 'refused'));
+  const stopOf = (id: string) => stopOfShipment(s, id);
   const retail = scopedOrders(s, actor)
     .filter((o) => o.kind === 'retail' && o.distributorId === d.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -86,6 +90,8 @@ export default function Distributors() {
         />
       </Panel>
 
+      <DistributorCharts s={s} overview={overview} rows={rows} ships={ships} selected={d.id} base={wsBase(db.session.workspaceId)} />
+
       <KpiRow>
         <Kpi label={`${d.id} in stock`} value={fmtKg(d.physical)} note={d.stale ? `Stale — last update ${d.lastSyncHours} h ago` : 'Live from postings'} tone={d.stale ? 'warning' : undefined} />
         <Kpi label="Available to sell" value={fmtKg(d.available)} />
@@ -102,12 +108,16 @@ export default function Distributors() {
             { key: 'from', label: 'From', render: (sh) => sh.fromDistributor ?? 'Factory' },
             { key: 'q', label: 'Shipped', num: true, render: (sh) => <Qty g={sum(sh.lines.map((l) => l.qty))} /> },
             { key: 'left', label: 'Still in transit', num: true, render: (sh) => <Qty g={transitLeft(sh)} strong={transitLeft(sh) > 0} /> },
-            { key: 'st', label: 'Status', render: (sh) => <Status s={sh.status} /> },
+            { key: 'st', label: 'Status', render: (sh) => { const st = stopOf(sh.id); return st ? <span className="rt-row"><Status s={sh.status} /> <span className="muted small">stop {st.stop.seq} of {st.trip.id}</span></span> : <Status s={sh.status} />; } },
             {
               key: 'act',
               label: 'Action',
               render: (sh) => {
                 const shipped = sum(sh.lines.map((l) => l.qty));
+                const stop = stopOf(sh.id);
+                if (stop && !stop.stop.outcome) return <StopOutcomeButton trip={stop.trip} stop={stop.stop} disabledReason={opsReason} />;
+                if (stop && stop.stop.refusedQty && !stop.stop.disposition)
+                  return <span className="muted small">Stop {stop.stop.seq} {stop.stop.outcome?.replace('_', ' ')} — {fmtKg(stop.stop.refusedQty)} refused stays on the vehicle; Godown/Dispatch decides</span>;
                 return sh.status === 'in_transit' ? (
                   <FormButton
                     label="Receive"

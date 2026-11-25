@@ -10,6 +10,7 @@ import { fmtDuration, fmtKg, kg, sum } from '../../domain/rentio/units';
 import { lotAccounting, stageFunnel, yieldReport } from '../../domain/rentio/views';
 import { useAct, useR } from '../store';
 import { Eta, FormButton, Grid, ImplNote, Kpi, KpiRow, LotLink, num, Panel, Reason, Ref, RPage, Status, str, Table, fmtTime, useCan, type FieldSpec } from '../ui';
+import { ForecastChart, TargetChart } from './_graphB';
 
 const istDay = (iso: string) => new Date(Date.parse(iso) + 330 * 60_000).toISOString().slice(0, 10);
 
@@ -45,6 +46,14 @@ export default function Season() {
   const wip = sum(funnel.map((f) => f.queue + f.running + f.held + f.output + f.pendingIn));
   const daily = funnel.find((f) => f.code === 'PACK');
   const packCapacityPerDay = daily ? Math.round((24 * 60 * kg(DEMO.packingKgPerRun)) / daily.plannedMinutes / (s.season.active ? s.season.factor : 1)) : 0;
+  const targetRows = STAGES.map((st) => ({ st, target: sum(todaysPlan?.items.filter((i) => i.stage === st.code).map((i) => i.targetQty) ?? []), actual: actualBy(st.code) }));
+  const forecastRows = Array.from({ length: 7 }, (_, i) => {
+    const day = new Date(Date.parse(`${today}T00:00:00Z`) + (i + 1) * 86_400_000).toISOString().slice(0, 10);
+    const cumulativeCap = packCapacityPerDay * (i + 1);
+    const projectedTotal = Math.min(Math.round((wip * (s.baseline.yieldPct ?? 0)) / 100), cumulativeCap);
+    const prevTotal = Math.min(Math.round((wip * (s.baseline.yieldPct ?? 0)) / 100), packCapacityPerDay * i);
+    return { day, out: projectedTotal - prevTotal, cum: projectedTotal };
+  });
 
   return (
     <RPage title="Season, plan & forecast" description="Season settings, today's plan and readiness, shift handover and the gated 7-day forecast.">
@@ -168,8 +177,9 @@ export default function Season() {
           ]}
         />
         <h3 className="rt-h3">Today ({today}): target vs actual forward output</h3>
+        <TargetChart rows={targetRows.map((r) => ({ code: r.st.code, label: r.st.label, target: r.target, actual: r.actual }))} />
         <Table
-          rows={STAGES.map((st) => ({ st, target: sum(todaysPlan?.items.filter((i) => i.stage === st.code).map((i) => i.targetQty) ?? []), actual: actualBy(st.code) }))}
+          rows={targetRows}
           rowKey={(r) => r.st.code}
           cols={[
             { key: 's', label: 'Stage', render: (r) => r.st.label },
@@ -218,14 +228,9 @@ export default function Season() {
             <p className="rt-empty">
               Baseline {s.baseline.yieldPct}% approved by {userName(s.baseline.approvedBy)} on {fmtTime(s.baseline.approvedAt)} from {s.baseline.lots.length} lot(s){s.baseline.lots.length < DEMO.baselineLotsRequired ? ' — DEMO override, low confidence' : ''}.
             </p>
+            <ForecastChart rows={forecastRows} lowConfidence={s.baseline.lots.length < DEMO.baselineLotsRequired} />
             <Table
-              rows={Array.from({ length: 7 }, (_, i) => {
-                const day = new Date(Date.parse(`${today}T00:00:00Z`) + (i + 1) * 86_400_000).toISOString().slice(0, 10);
-                const cumulativeCap = packCapacityPerDay * (i + 1);
-                const projectedTotal = Math.min(Math.round((wip * (s.baseline.yieldPct ?? 0)) / 100), cumulativeCap);
-                const prevTotal = Math.min(Math.round((wip * (s.baseline.yieldPct ?? 0)) / 100), packCapacityPerDay * i);
-                return { day, out: projectedTotal - prevTotal, cum: projectedTotal };
-              })}
+              rows={forecastRows}
               rowKey={(r) => r.day}
               cols={[
                 { key: 'd', label: 'Day', render: (r) => r.day },

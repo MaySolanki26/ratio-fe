@@ -9,6 +9,7 @@ import { purchaseBalances } from '../../domain/rentio/ops';
 import { fmtINR, fmtKg, sum, valueOf } from '../../domain/rentio/units';
 import { byproductReconciliation, lotAccounting, yieldReport } from '../../domain/rentio/views';
 import { useR } from '../store';
+import { LotTrace } from '../LotTrace';
 import { canReadLot, readScope } from '../../domain/rentio/scope';
 import { Details, Grid, ImplNote, Kpi, KpiRow, LotLink, Panel, Ref, RPage, Status, Table, fmtTime, useFocusId } from '../ui';
 
@@ -157,6 +158,8 @@ export default function Reports() {
           <p className="rt-empty">No root lots yet.</p>
         )}
       </Panel>
+
+      {root && <LotTrace rootId={root} />}
 
       {y && (
         <Grid cols={2}>

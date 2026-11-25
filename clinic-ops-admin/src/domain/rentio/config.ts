@@ -39,4 +39,26 @@ export const DEMO = {
   packingKgPerRun: 2500,
   /** Owner-only threshold: approvals with exposure above this go to the owner (₹). */
   ownerExposureRupees: 50000,
+  /** FR-103 repacking: maximum recorded loss as % of input before the repack is refused (use a count/adjustment instead). */
+  repackLossTolerancePct: 1,
+  /** Replenishment policy (FR-101/106/113/117, WF-12) — fictional demo parameters, not Rentio policy. */
+  replenish: {
+    /** Plant raw cover kept in R1 beyond open demand (kg). */
+    rawMinKg: 12000,
+    /** Supplier lead time (days): only purchases promised within this window reduce the need. */
+    rawLeadDays: 3,
+    /** Demo raw → packed dal yield used to convert finished demand into raw (%). */
+    yieldPct: 75,
+    /** Finished-goods minimum kept in F1 (kg) — demand above available stock creates raw need. */
+    finishedMinKg: 2000,
+    /** Critical stores: minimum, reorder-to level and vendor lead time (units: kg for oil, count for bags/pouches). */
+    stores: [
+      { lotId: 'OIL-B01', label: 'Edible oil (oiling addition)', unit: 'kg', min: 150, max: 500, leadDays: 3 },
+      { lotId: 'BAGS-25-B01', label: 'Empty 25 kg PP bags', unit: 'bags', min: 300, max: 1500, leadDays: 4 },
+      { lotId: 'POUCH-1-B01', label: '1 kg retail pouches', unit: 'pouches', min: 400, max: 1000, leadDays: 5 },
+    ] as { lotId: string; label: string; unit: 'kg' | 'bags' | 'pouches'; min: number; max: number; leadDays: number }[],
+    /** Partner reorder level = distributor minimum + lead days × daily offtake; refill up to the distributor maximum. */
+    partnerLeadDays: 2,
+    partnerDailyOfftakeKg: 40,
+  },
 };

@@ -106,6 +106,7 @@ export const SKUS = [
   { id: 'SKU-A2-25', grade: 'A2', label: 'Toor dal A2 · 25 kg bag', packKg: 25, shelfLifeDays: 180, active: true },
   { id: 'SKU-B2-25', grade: 'B2', label: 'Toor dal B2 · 25 kg bag', packKg: 25, shelfLifeDays: 180, active: true },
   { id: 'SKU-A1-50', grade: 'A1', label: 'Toor dal A1 · 50 kg bag', packKg: 50, shelfLifeDays: 180, active: false },
+  { id: 'SKU-A2-1', grade: 'A2', label: 'Toor dal A2 · 1 kg retail pouch (repack target)', packKg: 1, shelfLifeDays: 180, active: true },
 ];
 
 export const EMPLOYEES = [

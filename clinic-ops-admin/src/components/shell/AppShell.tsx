@@ -6,11 +6,13 @@ import { pagePath, recordPeekPath, resourcePath, wsBase } from '../../lib/routes
 import { PHONE, TABLET, useMedia } from '../../lib/useMedia';
 import { actorFor, can, canReadResource } from '../../services/authz';
 import { listNotifications, markAllRead, markNotification, snoozeNotification } from '../../services/collab';
-import { getPersistError, resetDb } from '../../services/db';
+import { getDb, getPersistError, resetDb } from '../../services/db';
 import { useActor, useRevision } from '../../services/hooks';
 import { getResource, getRole } from '../../services/registry';
 import { searchRecords } from '../../services/search';
-import { getSettings, SIDEBAR_MAX, SIDEBAR_MIN, switchSession, toggleFavorite, togglePin, updateSettings } from '../../services/settings';
+import { getSettings, SIDEBAR_MAX, SIDEBAR_MIN, signOut, switchSession, toggleFavorite, togglePin, updateSettings, usesLoginGate } from '../../services/settings';
+import { ractor } from '../../domain/rentio/access';
+import { inboxUnread } from '../../rentio/inbox';
 import { defaultViewId, listViews } from '../../services/views';
 import { relativeTime } from '../../lib/dates';
 import { applyPalette, findPalette, type Palette } from '../../lib/palette';
@@ -63,8 +65,16 @@ export function moduleLanding(actor: ReturnType<typeof useActor>, m: ReturnType<
   return domain().id === 'rentio' ? `${wsBase(ws)}/home/my-work` : `${wsBase(ws)}/dashboard`;
 }
 
-/** Personal work queue: Rentio's My work; the clinic pack keeps its Work inbox. */
-const inboxPath = (ws: string) => (domain().id === 'rentio' ? `${wsBase(ws)}/home/my-work` : pagePath(ws, 'work', 'inbox'));
+/** Personal inbox: Rentio's Home › Inbox; the clinic pack keeps its Work inbox. (My work stays the staff landing.) */
+const inboxPath = (ws: string) => (domain().id === 'rentio' ? `${wsBase(ws)}/home/inbox` : pagePath(ws, 'work', 'inbox'));
+const inboxLabel = () => (domain().id === 'rentio' ? 'Inbox' : 'Work inbox');
+const isInboxPath = (pathname: string) => (domain().id === 'rentio' ? pathname.endsWith('/home/inbox') : pathname.endsWith('/work/inbox'));
+
+/** Unread items in the signed-in person's inbox (Rentio: scoped work + alerts; clinic: notifications). */
+function inboxUnreadCount(actor: ReturnType<typeof useActor>) {
+  if (domain().id !== 'rentio') return listNotifications(actor).filter((n) => !n.readAt).length;
+  return inboxUnread(getDb(), ractor(actor.user.id), new Date().toISOString());
+}
 
 function activeModule(pathname: string) {
   const parts = pathname.split('/');
@@ -161,7 +171,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
 function IconRail({ mod, onHelp }: { mod: string; onHelp: () => void }) {
   const actor = useActor();
-  const unread = listNotifications(actor).filter((n) => !n.readAt).length;
+  const unread = inboxUnreadCount(actor);
   const navigate = useNavigate();
   const location = useLocation();
   return (
@@ -187,7 +197,7 @@ function IconRail({ mod, onHelp }: { mod: string; onHelp: () => void }) {
           ))}
         {/* Work inbox: 3rd item in the rail, after Home and Scheduling (owner rule 69) */}
         <li style={{ order: 2 }}>
-          <button type="button" className={cx('rail-item', mod === 'work' && location.pathname.endsWith('inbox') && 'is-active')} aria-label={`${domain().id === 'rentio' ? 'My work' : 'Work inbox'}${unread ? `, ${unread} unread` : ''}`} data-tooltip={domain().id === 'rentio' ? 'My work' : 'Work inbox'} onClick={() => navigate(inboxPath(actor.workspaceId))}>
+          <button type="button" className={cx('rail-item', isInboxPath(location.pathname) && 'is-active')} aria-current={isInboxPath(location.pathname) ? 'page' : undefined} aria-label={`${inboxLabel()}${unread ? `, ${unread} unread` : ''}`} data-tooltip={inboxLabel()} onClick={() => navigate(inboxPath(actor.workspaceId))}>
             <Icon name="inbox" />
             {/* no count badge on the icon rail (owner, 2026-11-24); the unread count stays in the label */}
           </button>
@@ -459,6 +469,8 @@ function ContextSidebar({ mod, collapsed = false }: { mod: string; collapsed?: b
 
 function MobileNav({ mod, onClose: closeNow, onSearch, onHelp, showRail }: { mod: string; onClose: () => void; onSearch: () => void; onHelp: () => void; showRail: boolean }) {
   const actor = useActor();
+  const location = useLocation();
+  const unread = inboxUnreadCount(actor);
   const ref = useRef<HTMLDivElement>(null);
   const [closing, setClosing] = useState(false);
   const onClose = () => {
@@ -489,6 +501,12 @@ function MobileNav({ mod, onClose: closeNow, onSearch, onHelp, showRail }: { mod
                   <span>{m.label}</span>
                 </Link>
               ))}
+            {domain().id === 'rentio' && (
+              <Link to={inboxPath(actor.workspaceId)} className={cx('mobile-module', isInboxPath(location.pathname) && 'is-active')} aria-current={isInboxPath(location.pathname) ? 'page' : undefined} aria-label={`Inbox${unread ? `, ${unread} unread` : ''}`}>
+                <Icon name="inbox" />
+                <span>Inbox{unread ? ` (${unread})` : ''}</span>
+              </Link>
+            )}
             <button type="button" className="mobile-module" onClick={onSearch}>
               <Icon name="search" />
               <span>Search</span>
@@ -633,7 +651,7 @@ function NotificationBell() {
           <p className="muted pop-empty">You’re all caught up.</p>
         )}
         <Link className="pop-foot link" to={inboxPath(actor.workspaceId)} onClick={() => setOpen(false)}>
-          Open Work inbox
+          Open {inboxLabel()}
         </Link>
       </Popover>
     </>
@@ -762,6 +780,23 @@ function AccountMenu({ inRail = false }: { inRail?: boolean }) {
               <span className="menu-label">Reset demo data…</span>
             </button>
           </li>
+          {usesLoginGate() && (
+            <li>
+              <button
+                type="button"
+                className="menu-item"
+                onClick={() => {
+                  setOpen(false);
+                  // clears the demo session marker only — business data and personal settings stay
+                  signOut();
+                  navigate('/login', { replace: true });
+                }}
+              >
+                <Icon name="log-out" />
+                <span className="menu-label">Log out</span>
+              </button>
+            </li>
+          )}
         </ul>
       </Popover>
       <ResetDialog open={confirmReset} onClose={() => setConfirmReset(false)} />

@@ -7,6 +7,7 @@ import { scopedMovements, scopedStockRows } from '../../domain/rentio/scope';
 import { fmtKg, sum } from '../../domain/rentio/units';
 import { InlineAlert } from '../../components/primitives/feedback';
 import { Condition } from './Inventory';
+import { ByproductGraphics } from './_graphA';
 import { byproductReconciliation } from '../../domain/rentio/views';
 import { newKey, useAct, useR } from '../store';
 import { Details, FormButton, ImplNote, Kpi, KpiRow, LotLink, Panel, Qty, RPage, Status, Table, Who, fmtTime, num, str, useCan, useFocusId } from '../ui';
@@ -84,6 +85,8 @@ export default function Byproducts() {
         ))}
         <Kpi label="Husk/Churi lots in stock" value={lotSet.size} />
       </KpiRow>
+
+      <ByproductGraphics s={s} />
 
       <Details summary="Reconciliation: opening + generated − used − sold = closing">
         <Table

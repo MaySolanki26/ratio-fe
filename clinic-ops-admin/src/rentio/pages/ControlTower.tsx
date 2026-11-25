@@ -1,10 +1,17 @@
 /** Owner overview — decisions first, then where the stock is, what is running, and promised deliveries. */
-import { Link, Navigate } from 'react-router-dom';
+import type { MouseEvent } from 'react';
+import { Navigate } from 'react-router-dom';
 import { InlineAlert } from '../../components/primitives/feedback';
 import { hasCap, type RActor, userName } from '../../domain/rentio/access';
 import { readScope, scopedOrders, scopedStockRows } from '../../domain/rentio/scope';
 import { fmtINR, fmtKg, sum } from '../../domain/rentio/units';
-import { type Alert, alertsFor, ctaFor, distributorOverview, stageFunnel, stageName } from '../../domain/rentio/views';
+import { type Alert, alerts, alertsFor, ctaFor, distributorOverview, stageFunnel, stageName } from '../../domain/rentio/views';
+import { incidentView } from '../../domain/rentio/incidents';
+import { openSuggestions, scopedSuggestions } from '../../domain/rentio/replenish';
+import { DeliveryOutcomeChart, FinishedByGradeChart } from './Charts';
+import { FlowChain, RunTimeline, StackBars, STATUS } from '../graphics';
+import { routeFlow, stockFlow } from '../flows';
+import { scopedRuns } from '../../domain/rentio/scope';
 import { wsBase } from '../../lib/routes';
 import { useR } from '../store';
 import { Details, Eta, ImplNote, OrderStatusChip, PageLink, Panel, Qty, RPage, Sim, Status, Table, fmtTime } from '../ui';
@@ -41,11 +48,7 @@ export default function ControlTower() {
   const sc = readScope(actor);
   const rows = scopedStockRows(s, actor, now).filter((r) => r.lot.unit !== 'bag' && r.lot.material !== 'OIL');
   const kind = (k: string[]) => rows.filter((r) => k.includes(r.location?.kind));
-  const raw = kind(['intake', 'raw']);
-  const proc = kind(['stage-in', 'stage-out', 'run', 'pending']);
   const fin = kind(['finished']).filter((r) => r.lot.material === 'PACKED' || r.lot.material === 'DAL');
-  const transit = kind(['transit']);
-  const dist = kind(['distributor', 'distributor-held']);
   const kgOf = (rs: typeof rows) => sum(rs.map((r) => r.qty));
   const bags = (rs: typeof rows) => sum(rs.filter((r) => r.lot.bagSize).map((r) => Math.floor(r.qty / r.lot.bagSize!)));
   const all = alertsFor(db, actor, now);
@@ -59,20 +62,30 @@ export default function ControlTower() {
   const orders = scopedOrders(s, actor).filter((o) => o.kind === 'factory' && !['cancelled', 'closed'].includes(o.status) && !o.revisions.some((r) => r.change.startsWith('Inter-distributor')));
   const grades = [...new Set(fin.map((r) => r.lot.grade ?? '—'))].sort();
   const today = new Date(Date.parse(now) + 330 * 60_000).toISOString().slice(0, 10);
+  const live = alerts(db, now);
+  // read-scoped like Incidents and Replenishment: no child titles, owners or quantities outside the role's scope
+  const incidents = (s.incidents ?? []).filter((x) => x.status === 'open').map((inc) => ({ inc, v: incidentView(db, actor, now, inc, live) })).filter((x) => x.v.listed);
+  const replen = hasCap(actor, 'page:planning/replenish') ? openSuggestions(scopedSuggestions(db, actor, now)) : [];
+  const toCharts = (e: MouseEvent) => {
+    const el = document.getElementById('owner-charts');
+    if (!el) return;
+    e.preventDefault();
+    el.scrollIntoView?.({ block: 'start' });
+    el.focus();
+  };
   const staffTx = s.txLog.filter((t) => t.actorId !== actor.id && new Date(Date.parse(t.at) + 330 * 60_000).toISOString().slice(0, 10) === today).length;
 
-  const flow = [
-    { label: 'Raw toor', to: 'stock/godowns', value: fmtKg(kgOf(raw)), note: kgOf(kind(['intake'])) ? `${fmtKg(kgOf(kind(['intake'])))} waiting for intake check` : `${fmtKg(sum(raw.map((r) => r.readyToProcess)))} ready to process` },
-    { label: 'In processing', to: 'production/stages', value: fmtKg(kgOf(proc)), note: `${funnel.length} stage(s) active${sum(funnel.map((f) => f.held)) ? ` · ${fmtKg(sum(funnel.map((f) => f.held)))} paused` : ''}` },
-    { label: 'Finished (factory)', to: 'stock/godowns', value: `${bags(fin).toLocaleString('en-IN')} bags`, note: `${fmtKg(kgOf(fin))} · ${fmtKg(sum(fin.map((r) => r.available)))} free to sell${sum(fin.filter((r) => r.held).map((r) => r.qty)) ? ` · ${fmtKg(sum(fin.filter((r) => r.held).map((r) => r.qty)))} on hold` : ''}` },
-    { label: 'On the road', to: 'distribution/orders', value: fmtKg(kgOf(transit)), note: `${new Set(transit.map((r) => r.loc)).size} shipment(s)` },
-    sc.all || sc.allDistributors
-      ? { label: 'At distributors', to: 'distribution/distributors', value: fmtKg(kgOf(dist)), note: `17 partners · ${distRows.filter((d) => d.stale).length} not updated in 24 h` }
-      : { label: 'At distributors', to: '', value: '—', note: 'Outside your view' },
-  ];
 
   return (
-    <RPage title="Owner overview" description="What needs you, where the stock is, what is running and which deliveries are at risk.">
+    <RPage
+      title="Owner overview"
+      description="What needs you, where the stock is, what is running and which deliveries are at risk."
+      actions={
+        <a className="btn btn-secondary" href="#owner-charts" onClick={toCharts}>
+          <span className="btn-label">View stock and delivery charts</span>
+        </a>
+      }
+    >
       <p className="rt-intro">
         Plant 1 · {fmtTime(now)} IST · figures update as staff post work{s.dataset === 'completed' ? '' : ''}.
       </p>
@@ -85,23 +98,102 @@ export default function ControlTower() {
         {risks.length ? risks.map((a) => <DecisionRow key={a.key} a={a} actor={actor} />) :<p className="rt-empty">No high or critical risks.</p>}
       </Panel>
 
-      <section aria-label="Stock flow" className="rt-flowstrip">
-        {flow.map((f) =>
-          f.to ? (
-            <Link key={f.label} to={`${base}/${f.to}`}>
-              <span className="rt-flow-label">{f.label}</span>
-              <span className="rt-flow-value">{f.value}</span>
-              <span className="rt-flow-note">{f.note}</span>
-            </Link>
-          ) : (
-            <div key={f.label}>
-              <span className="rt-flow-label">{f.label}</span>
-              <span className="rt-flow-value">{f.value}</span>
-              <span className="rt-flow-note">{f.note}</span>
-            </div>
-          ),
-        )}
+      {/* charts sit straight after decisions and risks (and are reachable from the header shortcut) */}
+      <section id="owner-charts" tabIndex={-1} aria-label="Owner charts" className="rt-charts">
+        <div className="rt-span-all">
+          <FlowChain title="Where the stock is now" caption="Physical kg along the network · open a step for its lots" nodes={stockFlow(s, actor, now, base)} />
+        </div>
+        <div className="rt-span-all">
+          <FlowChain
+            title="Production route — material at each stage"
+            caption="Arriving + queued + running + ready, kg · late or paused stages are outlined · side exits = what left the main flow (all lots)"
+            nodes={routeFlow(s, actor, now, base, { exitsFromRoot: undefined })}
+          />
+        </div>
+        <FinishedByGradeChart fin={fin} base={base} />
+        <DeliveryOutcomeChart s={s} base={base} visible={(d) => sc.all || sc.allDistributors || sc.distributors.includes(d)} />
+        <StackBars
+          title="Open exceptions by area"
+          caption="Count of open items in your view, by severity · open the list for names and actions"
+          format={(n) => String(n)}
+          segs={[
+            { key: 'critical', label: 'Critical', color: STATUS.bad },
+            { key: 'high', label: 'High', color: STATUS.warn },
+            { key: 'medium', label: 'Medium', color: STATUS.info },
+            { key: 'low', label: 'Low', color: STATUS.faint },
+          ]}
+          rows={(['decision', 'delivery', 'production', 'stock', 'money'] as const)
+            .map((fam) => {
+              const xs = all.filter((a) => a.family === fam);
+              const v: Record<string, number> = {};
+              xs.forEach((a) => (v[a.severity] = (v[a.severity] ?? 0) + 1));
+              const label = { decision: 'Decisions', delivery: 'Deliveries', production: 'Production', stock: 'Stock & quality', money: 'Money' }[fam];
+              return { id: fam, label, text: label, to: `${base}/home/alerts`, values: v };
+            })
+            .filter((r) => Object.keys(r.values).length > 0)}
+          rowHeader="Area"
+          empty="No open exceptions."
+        />
+        <RunTimeline
+          title="Runs in progress — planned vs actual"
+          caption="Working time, holds and time past the planned finish"
+          runs={scopedRuns(s, actor).filter((r) => r.status !== 'completed')}
+          now={now}
+          labelOf={(r) => `${stageName(r.stage)} · ${r.inputLotId}`}
+        />
       </section>
+
+      {(incidents.length > 0 || hasCap(actor, 'page:home/incidents')) && (
+        <Panel title="Incidents" meta={incidents.length ? `${incidents.length} open` : 'none open'} actions={hasCap(actor, 'page:home/incidents') ? <PageLink to="home/incidents">All incidents</PageLink> : undefined}>
+          {incidents.length ? (
+            <ul className="rt-brief">
+              {incidents.map(({ inc, v: { kids, shown, label } }) => {
+                const hidden = kids.filter((k) => k.state === 'open').length - shown.filter((k) => k.state === 'open').length;
+                return (
+                <li key={inc.id}>
+                  <Status s={kids.some((k) => k.state === 'open') ? 'open' : 'resolved'} />
+                  <div>
+                    <div className="rt-brief-title">{label}</div>
+                    <div className="rt-brief-detail">
+                      Lead {userName(inc.leadId)} · {kids.length} linked · {kids.filter((k) => k.state === 'open').length} open ({[...shown.filter((k) => k.state === 'open').map((k) => k.ownerName), ...(hidden ? [`${hidden} outside your area`] : [])].join(', ') || '—'}) · {kids.filter((k) => k.state === 'resolved').length} resolved
+                    </div>
+                  </div>
+                  <PageLink to={`home/incidents?focus=${inc.id}`}>Open</PageLink>
+                </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="rt-empty">No open incidents. Group related alerts from Incidents when one problem causes several.</p>
+          )}
+        </Panel>
+      )}
+
+      {hasCap(actor, 'page:planning/replenish') && (
+        <Panel title="Replenishment to review" meta={`${replen.length} suggestion(s) · nothing is bought or sent automatically`} actions={<PageLink to="planning/replenish">All suggestions</PageLink>}>
+          {replen.length ? (
+            <ul className="rt-brief">
+              {replen.slice(0, 4).map((x) => (
+                <li key={x.key}>
+                  {x.needsConfirmation ? <Status s="stale" /> : <span className="rt-dot" aria-hidden="true" />}
+                  <div>
+                    <div className="rt-brief-title">{x.title}: {x.qtyLabel}</div>
+                    <div className="rt-brief-detail">
+                      Reviewer {userName(x.reviewerId)} · arrange by {x.orderBy}
+                      {x.needsConfirmation ? ' · stale partner data — needs confirmation' : ''}
+                      {x.review?.staleReason === 'qty' ? ' · changed since last review' : x.review?.staleReason === 'data' ? ' · confirmation expired since last review' : ''}
+                    </div>
+                  </div>
+                  <PageLink to={`planning/replenish?focus=${encodeURIComponent(x.key)}`}>Review</PageLink>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="rt-empty">Nothing to replenish right now.</p>
+          )}
+        </Panel>
+      )}
+
 
       <Panel title="Production now" meta="Open a stage to see the lot and who is acting" actions={<PageLink to="production/stages">Stage board</PageLink>}>
         <Table

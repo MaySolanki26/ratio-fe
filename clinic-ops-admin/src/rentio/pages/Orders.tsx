@@ -1,5 +1,6 @@
 /** Factory → distributor orders: FEFO reservation, dispatch weighing and in-transit custody. */
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '../../components/primitives/Button';
 import { InlineAlert } from '../../components/primitives/feedback';
 import * as C from '../../domain/rentio/commerce';
@@ -11,6 +12,8 @@ import { fmtINR, fmtKg, kg, sum } from '../../domain/rentio/units';
 import { newKey, useAct, useR } from '../store';
 import { Details, FormButton, Grid, ImplNote, Kpi, KpiRow, LotLink, num, OrderStatusChip, Panel, Qty, Reason, Ref, RPage, Sim, Status, str, Table, useCan, useFocusId, Who, fmtTime } from '../ui';
 import { FocusMissing, Preview } from './_distHelpers';
+import { OrderCharts } from './_graphB';
+import { wsBase } from '../../lib/routes';
 
 const GRADES = ['A1', 'B1', 'A2', 'B2'].map((g) => ({ value: g, label: g }));
 
@@ -38,6 +41,9 @@ export default function Orders() {
   const activeRes = s.reservations.filter((r) => r.status === 'active' && orderIds.has(r.orderId));
   const finished = rows.filter((r) => r.location?.kind === 'finished' && r.lot.unit !== 'bag');
   const focusFound = !focus || orderIds.has(focus);
+  // replenishment handoff: /distribution/orders?new=order&d=D04&grade=A1&kg=5700 opens the normal form prefilled
+  const q = new URLSearchParams(useLocation().search);
+  const handoff = q.get('new') === 'order' ? q : undefined;
 
   return (
     <RPage
@@ -52,7 +58,8 @@ export default function Orders() {
           disabledReason={can('order.create.factory', 'create factory orders')}
           title="New factory order"
           submitLabel="Create order"
-          note="Uses today's published rate. Within the distributor's credit limit the order is approved automatically; above it, it waits for a credit decision."
+          note={handoff ? `Prefilled from replenishment suggestion for ${handoff.get('d')} — check the quantity with the distributor. Nothing is created until you submit. Uses today's published rate; above the credit limit it waits for a credit decision.` : "Uses today's published rate. Within the distributor's credit limit the order is approved automatically; above it, it waits for a credit decision."}
+          defaultOpen={!!handoff}
           fields={[
             { key: 'distributorId', label: 'Distributor', type: 'select', options: distOpts, required: true },
             { key: 'grade', label: 'Grade', type: 'select', options: GRADES, required: true },
@@ -60,7 +67,7 @@ export default function Orders() {
             { key: 'promisedDate', label: 'Promised date', type: 'text', placeholder: 'YYYY-MM-DD' },
             { key: 'advance', label: 'Advance booking — planned demand, does not reserve stock', type: 'checkbox' },
           ]}
-          initial={{ grade: 'A1', kg: '1000' }}
+          initial={handoff ? { distributorId: handoff.get('d') ?? '', grade: handoff.get('grade') ?? 'A1', kg: handoff.get('kg') ?? '' } : { grade: 'A1', kg: '1000' }}
           onSubmit={(v, key) =>
             run('Create factory order', (ctx) => C.createFactoryOrder(ctx, { distributorId: str(v.distributorId), lines: [{ grade: str(v.grade), kg: num(v.kg) }], promisedDate: str(v.promisedDate) || undefined, advance: !!v.advance }), { key, success: (o) => `Order ${o.id} ${o.status === 'credit_hold' ? 'is on credit hold — approval requested' : 'approved within credit'}` })
           }
@@ -75,6 +82,8 @@ export default function Orders() {
         <Kpi label="On hold" value={fmtKg(sum(finished.filter((r) => r.held).map((r) => r.qty)))} tone={finished.some((r) => r.held) ? 'warning' : undefined} />
         {sc.transit && <Kpi label="In transit" value={fmtKg(sum(rows.filter((r) => r.location?.kind === 'transit').map((r) => r.qty)))} />}
       </KpiRow>
+
+      <OrderCharts s={s} orders={orders} order={order} base={wsBase(db.session.workspaceId)} focus={focus && orderIds.has(focus) ? focus : undefined} rows={rows} shipments={shipments} />
 
       <Panel title="Factory orders" meta="ordered = reserved + dispatched + open (+ cancelled)">
         <Table

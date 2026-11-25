@@ -7,7 +7,7 @@ import { DEMO } from './config';
 import { DEMO_RATES, RETAIL_RATES } from './data';
 import { type Ctx, createLot, ensureLocation, fail, ineligibility, move, nextId, notSelf, requireCap, requireScope, stockRows } from './engine';
 import { applyResidual, enqueueTally, rec, registerApplier, requestApproval } from './ops';
-import type { Complaint, OfflineOrder, Order, OrderLine, RApproval, Reservation, Shipment, TallyDoc } from './types';
+import type { Complaint, OfflineOrder, Order, OrderLine, RApproval, Reservation, Shipment, TallyDoc, Trip } from './types';
 import { fmtINR, fmtKg, type Grams, kg, rupees, sum, valueOf } from './units';
 
 export const distLoc = (d: string) => `DIST:${d}`;
@@ -46,13 +46,20 @@ export function lineBalance(s: Ctx['s'], o: Order, l: OrderLine) {
   const receivedGood = sum(ships.map((sh) => (sh.receipt ? lineShare(sh, l.id, sh.receipt.good + sh.receipt.damaged) : 0)));
   // still physically in transit custody (unsettled), allocated to lines in shipment order after receipts
   const unsettled = sum(ships.map((sh) => lineShareAfter(sh, l.id, sh.receipt ? sh.receipt.good + sh.receipt.damaged : 0, transitLeftOf(s, sh))));
+  // refused at a delivery stop and returned to the factory: the order quantity is open again (not "delivered")
+  const returned = sum(ships.map((sh) => lineShareAfter(sh, l.id, sh.receipt ? sh.receipt.good + sh.receipt.damaged : 0, returnedOf(s, sh))));
   const delivered = o.kind === 'retail' ? sum(s.movements.filter((m) => m.kind === 'deliver-retail' && m.ref === `${o.id}:${l.id}`).map((m) => m.qty)) : o.kind === 'byproduct' ? dispatched : receivedGood;
   const inTransit = o.kind === 'factory' ? unsettled : 0;
   /** dispatched but neither received nor still in transit: settled by approval (found elsewhere / loss) */
-  const settledOther = o.kind === 'factory' ? Math.max(0, dispatched - receivedGood - unsettled) : 0;
-  const fulfilled = o.kind === 'retail' ? delivered : dispatched;
+  const settledOther = o.kind === 'factory' ? Math.max(0, dispatched - receivedGood - unsettled - returned) : 0;
+  const fulfilled = o.kind === 'retail' ? delivered : dispatched - returned;
   const unallocated = Math.max(0, l.qty - l.cancelled - reserved - fulfilled);
-  return { ordered: l.qty, cancelled: l.cancelled, reserved, dispatched, inTransit, settledOther, delivered, unallocated, value: valueOf(l.qty - l.cancelled, l.ratePerKg) };
+  return { ordered: l.qty, cancelled: l.cancelled, reserved, dispatched, inTransit, settledOther, returned, delivered, unallocated, value: valueOf(l.qty - l.cancelled, l.ratePerKg) };
+}
+
+/** Quantity taken back from a shipment's transit custody to the factory (refused-stop disposition). */
+function returnedOf(s: Ctx['s'], sh: Shipment) {
+  return sum(s.movements.filter((m) => m.kind === 'return-receive' && m.from === sh.transitLoc).map((m) => m.qty));
 }
 
 /** Quantity of `settled` that belongs to one order line; a line may be split over several shipment lines (stacks). */
@@ -115,6 +122,9 @@ export function orderStatus(s: Ctx['s'], o: Order, eligible?: (lotId: string, lo
   const risky = s.reservations.filter((r) => r.orderId === o.id && r.status === 'active' && eligible && !eligible(r.lotId, r.location));
   const remaining = tot('unallocated') + tot('reserved');
   if (risky.length) return { code: 'at_risk', label: 'At risk — reserved stock on hold', detail: `${fmtKg(sum(risky.map((r) => r.qty)))} reserved on stock that cannot ship; reallocate eligible stock` };
+  const refused = ships.filter((sh) => sh.receipt?.refused && transitLeftOf(s, sh) > 0);
+  if (refused.length && inTransit > 0)
+    return { code: 'disputed', label: `Refused at delivery — ${fmtKg(sum(refused.map((sh) => transitLeftOf(s, sh))))} on the vehicle`, detail: `${fmtKg(delivered)} accepted; refused quantity stays in transit custody until Godown/Dispatch returns it to the factory` };
   if (openDispute && inTransit > 0) return { code: 'disputed', label: `Disputed — ${fmtKg(inTransit)} short`, detail: `${fmtKg(delivered)} received; ${fmtKg(inTransit)} unresolved in transit under investigation` };
   if (inTransit > 0) return { code: 'in_transit', label: `In transit — ${fmtKg(inTransit)}`, detail: `${fmtKg(delivered)} received so far` };
   if (delivered >= net) return { code: 'delivered', label: 'Delivered (receipt confirmed)', detail: 'Physical delivery complete; payment is followed up separately in Accounts' };
@@ -255,7 +265,7 @@ export function cancelOrderLine(ctx: Ctx, c: { orderId: string; lineId: string; 
 
 export function dispatchOrder(
   ctx: Ctx,
-  d: { orderId: string; transporterId: string; vehicle: string; driver: string; vehicleGrossKg?: number; vehicleTareKg?: number },
+  d: { orderId: string; transporterId: string; vehicle: string; driver: string; vehicleGrossKg?: number; vehicleTareKg?: number; /** multi-stop: the caller creates one trip for all shipments */ noTrip?: boolean },
 ): Shipment {
   requireCap(ctx, 'dispatch', 'dispatch shipments');
   const o = ctx.s.orders.find((x) => x.id === d.orderId) ?? fail('not_found', 'Order not found');
@@ -287,8 +297,10 @@ export function dispatchOrder(
   const sh: Shipment = { id, orderId: o.id, toDistributor: o.partyId, lines, transitLoc: transit.id, dispatchedAt: ctx.at, dispatchedBy: ctx.actor.id, status: 'in_transit' };
   if (d.vehicleGrossKg !== undefined && d.vehicleTareKg !== undefined) sh.weights = { vehicleGross: kg(d.vehicleGrossKg), vehicleTare: kg(d.vehicleTareKg), packagingTare };
   ctx.s.shipments.push(sh);
-  const trip = createTrip(ctx, { transporterId: d.transporterId, vehicle: d.vehicle, driver: d.driver, shipmentIds: [id] });
-  sh.tripId = trip.id;
+  if (!d.noTrip) {
+    const trip = createTrip(ctx, { transporterId: d.transporterId, vehicle: d.vehicle, driver: d.driver, shipmentIds: [id] });
+    sh.tripId = trip.id;
+  }
   const value = sum(lines.map((ln) => valueOf(ln.qty, o.lines.find((l) => l.id === ln.orderLineId)!.ratePerKg)));
   enqueueTally(ctx, 'sale', id, String(rec(ctx, 'distributors', o.partyId)?.name ?? o.partyId), value);
   return sh;
@@ -296,9 +308,35 @@ export function dispatchOrder(
 
 // ================================================================ M8 distributor receipt / variance
 
-export function receiveShipment(ctx: Ctx, r: { shipmentId: string; goodKg: number; damagedKg?: number; excessKg?: number; note?: string }) {
+type ReceiptInput = { shipmentId: string; goodKg: number; damagedKg?: number; excessKg?: number; note?: string };
+
+/** The multi-stop trip stop a shipment is assigned to, if any (searched over all trips, not only sh.tripId). */
+export function stopOfShipment(s: { trips: Trip[] }, shipmentId: string) {
+  for (const trip of s.trips) {
+    const stop = trip.stops?.find((x) => x.shipmentId === shipmentId);
+    if (stop) return { trip, stop };
+  }
+  return undefined;
+}
+
+/** Generic single-shipment receipt. A shipment on a multi-stop trip is rejected: it settles only through stop proof. */
+export function receiveShipment(ctx: Ctx, r: ReceiptInput) {
+  return settleShipmentReceipt(ctx, r);
+}
+
+/**
+ * Common receipt settlement. `viaStop` is passed only by the stop-proof handler (recordStopOutcome) and must
+ * name the exact, still-unrecorded stop this shipment is assigned to — so a stop can never settle another
+ * stop's shipment and a multi-stop shipment never settles through the generic receipt.
+ */
+export function settleShipmentReceipt(ctx: Ctx, r: ReceiptInput, viaStop?: { tripId: string; seq: number }) {
   requireCap(ctx, 'distributor.operate', 'receive distributor shipments');
   const sh = ctx.s.shipments.find((x) => x.id === r.shipmentId) ?? fail('not_found', 'Shipment not found');
+  const assigned = stopOfShipment(ctx.s, sh.id);
+  if (assigned && !viaStop) fail('business_rule', `${sh.id} is stop ${assigned.stop.seq} of multi-stop trip ${assigned.trip.id}. Record the stop outcome (Accepted / Part accepted / Refused) with the receiver and proof instead.`);
+  if (viaStop && (!assigned || assigned.trip.id !== viaStop.tripId || assigned.stop.seq !== viaStop.seq))
+    fail('business_rule', `${sh.id} is not the shipment of stop ${viaStop.seq} on ${viaStop.tripId} — a stop settles only its own shipment`);
+  if (assigned?.stop.outcome) fail('duplicate', `Stop ${assigned.stop.seq} on ${assigned.trip.id} was already recorded as ${assigned.stop.outcome.replace('_', ' ')}`);
   const dist = sh.toDistributor ?? fail('business_rule', 'Not a distributor shipment');
   requireScope(ctx, 'distributors', dist, 'receive this shipment');
   if (sh.receipt) fail('duplicate', `Receipt for ${sh.id} was already submitted and locked`);
@@ -722,7 +760,7 @@ export function createTrip(ctx: Ctx, t: { transporterId: string; vehicle: string
   if (!rec(ctx, 'transporters', t.transporterId)) fail('validation', 'Choose a transporter');
   if (!t.vehicle?.trim()) fail('validation', 'Vehicle number is required');
   const card = [...ctx.s.rateCards].reverse().find((r) => r.transporterId === t.transporterId && !r.validTo) ?? fail('business_rule', 'No active rate card for this transporter');
-  const trip = { id: nextId(ctx.s, 'TRP'), transporterId: t.transporterId, vehicle: t.vehicle.trim().toUpperCase(), driver: t.driver || '—', shipmentIds: t.shipmentIds, rateCardId: card.id, vehicleChanges: [], status: 'open' as const, createdAt: ctx.at };
+  const trip: Trip = { id: nextId(ctx.s, 'TRP'), transporterId: t.transporterId, vehicle: t.vehicle.trim().toUpperCase(), driver: t.driver || '—', shipmentIds: t.shipmentIds, rateCardId: card.id, vehicleChanges: [], status: 'open', createdAt: ctx.at };
   ctx.s.trips.push(trip);
   return trip;
 }

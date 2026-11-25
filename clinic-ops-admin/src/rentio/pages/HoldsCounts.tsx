@@ -6,6 +6,7 @@ import { disposeSample, takeSample } from '../../domain/rentio/control';
 import type { Hold } from '../../domain/rentio/types';
 import { fmtKg, sum } from '../../domain/rentio/units';
 import { useAct, useR } from '../store';
+import { HoldGraphics } from './_graphA';
 import { Details, FormButton, ImplNote, Kpi, KpiRow, LotLink, Panel, Qty, RPage, Reason, Status, Table, Who, fmtTime, num, str, useCan, useFocusId } from '../ui';
 
 export default function HoldsCounts() {
@@ -100,6 +101,8 @@ export default function HoldsCounts() {
         <Kpi label="Reserved stock at risk" value={fmtKg(sum(rows.map((r) => r.reservedAtRisk)))} tone={rows.some((r) => r.reservedAtRisk) ? 'danger' : undefined} />
         <Kpi label="Counts awaiting approval" value={counts.filter((c) => c.status === 'pending_approval').length} />
       </KpiRow>
+
+      <HoldGraphics holds={active} affected={affected} counts={counts} labelOf={(h) => (h.scope === 'lot' ? h.target : s.locations[h.target]?.label ?? h.target)} />
 
       {focus && !visibleHolds.some((h) => h.id === focus) && <InlineAlert tone="warning">That record is not in your area or no longer open.</InlineAlert>}
       <Panel title="Holds" meta="Released by QC — never by the person who placed it">
